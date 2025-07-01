@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gesture Control Methods Comparison</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #000;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+    
+    h1 {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .method-card {
+      background: rgba(20, 20, 20, 0.9);
+      border-radius: 15px;
+      padding: 20px;
+      border: 2px solid rgba(74, 158, 255, 0.3);
+    }
+    
+    .method-card h2 {
+      color: #4a9eff;
+      margin-top: 0;
+    }
+    
+    .visual-demo {
+      height: 200px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 10px;
+      margin: 15px 0;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    /* Return to Home visualization */
+    .home-demo .home-circle {
+      position: absolute;
+      width: 100px;  /* Scaled down for demo */
+      height: 100px;
+      border: 3px dashed rgba(255, 255, 255, 0.5);
+      border-radius: 50%;
+      top: 50%;
+      left: 30%;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+    }
+    
+    .home-demo .home-circle::after {
+      content: '';
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    
+    .home-demo .hand {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      background: #4a9eff;
+      border-radius: 50%;
+      top: 50%;
+      left: 30%;
+      transform: translate(-50%, -50%);
+      animation: homeGesture 4s infinite;
+    }
+    
+    @keyframes homeGesture {
+      0%, 20% { 
+        left: 30%; 
+        background: #4a9eff;
+      }
+      35% { 
+        left: 70%; 
+        background: #ff4444;
+      }
+      40% { 
+        left: 70%; 
+        background: #ffaa44;
+      }
+      45%, 60% { 
+        left: 30%; 
+        background: #ffaa44;
+      }
+      65%, 100% { 
+        left: 30%; 
+        background: #44ff44;
+      }
+    }
+    
+    /* Dynamic Zones visualization */
+    .zone-demo .zone {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      border: 2px solid rgba(255, 74, 158, 0.5);
+      background: rgba(255, 74, 158, 0.1);
+      border-radius: 10px;
+      animation: followHand 4s infinite;
+    }
+    
+    .zone-demo .hand {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background: #ff4a9e;
+      border-radius: 50%;
+      animation: followHand 4s infinite;
+    }
+    
+    @keyframes followHand {
+      0%, 100% { left: 20%; top: 50%; transform: translate(-50%, -50%); }
+      25% { left: 40%; top: 30%; transform: translate(-50%, -50%); }
+      50% { left: 60%; top: 50%; transform: translate(-50%, -50%); }
+      75% { left: 40%; top: 70%; transform: translate(-50%, -50%); }
+    }
+    
+    /* 3-Action Buffer visualization */
+    .buffer-demo .dots {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      gap: 15px;
+    }
+    
+    .buffer-demo .dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .buffer-demo .dot.active {
+      background: #4a9eff;
+      animation: fillDot 4s infinite;
+    }
+    
+    @keyframes fillDot {
+      0%, 25% { opacity: 0; }
+      26%, 100% { opacity: 1; }
+    }
+    
+    .buffer-demo .dot:nth-child(2).active {
+      animation-delay: 0.5s;
+    }
+    
+    .buffer-demo .dot:nth-child(3).active {
+      animation-delay: 1s;
+    }
+    
+    /* State Machine visualization */
+    .state-demo .neutral-zone {
+      position: absolute;
+      width: 40%;
+      height: 60%;
+      border: 2px dashed rgba(255, 255, 255, 0.3);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    
+    .state-demo .states {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      animation: stateChange 4s infinite;
+    }
+    
+    @keyframes stateChange {
+      0%, 25% { content: "IDLE"; color: #44ff44; }
+      26%, 50% { content: "GESTURE_START"; color: #ffaa44; }
+      51%, 75% { content: "CONFIRMED"; color: #ff4444; }
+      76%, 100% { content: "WAIT_RETURN"; color: #4a9eff; }
+    }
+    
+    .features {
+      margin-top: 15px;
+    }
+    
+    .features li {
+      margin: 5px 0;
+      font-size: 14px;
+    }
+    
+    .best-for {
+      margin-top: 15px;
+      padding: 10px;
+      background: rgba(74, 158, 255, 0.1);
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    
+    .try-button {
+      display: inline-block;
+      margin-top: 15px;
+      padding: 10px 20px;
+      background: #4a9eff;
+      color: white;
+      text-decoration: none;
+      border-radius: 25px;
+      transition: all 0.3s ease;
+    }
+    
+    .try-button:hover {
+      background: #3a8eef;
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body>
+  <h1>Gesture Control Methods Comparison</h1>
+  
+  <div class="comparison-grid">
+    <!-- Return to Home -->
+    <div class="method-card">
+      <h2>🏠 Return to Home</h2>
+      <div class="visual-demo home-demo">
+        <div class="home-circle"></div>
+        <div class="hand"></div>
+      </div>
+      <ul class="features">
+        <li>200px home circles for easy targeting</li>
+        <li>Fast detection (8% threshold)</li>
+        <li>Natural reach-and-return flow</li>
+        <li>🖐️ Palm zoom / ✊ Fist restore</li>
+        <li>Visual guidance with arrows</li>
+        <li>0.5 second setup time</li>
+      </ul>
+      <div class="best-for">
+        <strong>Best for:</strong> Presentations, deliberate control, natural rhythm
+      </div>
+      <a href="return-to-home.html" class="try-button">Try It →</a>
+    </div>
+    
+    <!-- Dynamic Zones -->
+    <div class="method-card">
+      <h2>🎯 Dynamic Zones</h2>
+      <div class="visual-demo zone-demo">
+        <div class="zone"></div>
+        <div class="hand"></div>
+      </div>
+      <ul class="features">
+        <li>Zones follow your hands</li>
+        <li>Work from any position</li>
+        <li>200x200px gesture areas</li>
+        <li>Visual zone boundaries</li>
+      </ul>
+      <div class="best-for">
+        <strong>Best for:</strong> Moving presentations, flexible positioning
+      </div>
+      <a href="dynamic-hand-zones.html" class="try-button">Try It →</a>
+    </div>
+    
+    <!-- 3-Action Buffer -->
+    <div class="method-card">
+      <h2>🤲 3-Action Buffer</h2>
+      <div class="visual-demo buffer-demo">
+        <div class="dots">
+          <div class="dot active"></div>
+          <div class="dot active"></div>
+          <div class="dot active"></div>
+        </div>
+      </div>
+      <ul class="features">
+        <li>Wait for 3 hand actions</li>
+        <li>Visual progress dots</li>
+        <li>Fixed side zones</li>
+        <li>Count-based waiting</li>
+      </ul>
+      <div class="best-for">
+        <strong>Best for:</strong> Two-handed control, preventing false positives
+      </div>
+      <a href="two-handed-buffer.html" class="try-button">Try It →</a>
+    </div>
+    
+    <!-- State Machine -->
+    <div class="method-card">
+      <h2>🔄 State Machine</h2>
+      <div class="visual-demo state-demo">
+        <div class="neutral-zone"></div>
+        <div class="states">IDLE</div>
+      </div>
+      <ul class="features">
+        <li>Central neutral zone</li>
+        <li>Four distinct states</li>
+        <li>Must leave zone to gesture</li>
+        <li>Color-coded states</li>
+      </ul>
+      <div class="best-for">
+        <strong>Best for:</strong> Technical users, precise control
+      </div>
+      <a href="gesture-state-machine.html" class="try-button">Try It →</a>
+    </div>
+  </div>
+</body>
+</html>

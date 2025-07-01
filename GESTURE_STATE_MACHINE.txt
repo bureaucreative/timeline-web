@@ -1,0 +1,135 @@
+# GESTURE STATE MACHINE WITH NEUTRAL ZONE
+
+## Overview
+Advanced gesture recognition system that distinguishes between intentional gestures and natural hand return movements using a finite state machine (FSM) and neutral zone detection.
+
+## Key Concepts
+
+### 1. **Neutral Zone**
+- Center 40% of screen (adjustable)
+- Acts as "home" position for hand
+- Gestures must start by leaving this zone
+- Hand must return here before next gesture
+
+### 2. **State Machine**
+```
+IDLE → GESTURE_START → GESTURE_CONFIRMED → WAIT_FOR_RETURN → IDLE
+```
+
+#### States Explained:
+
+**IDLE** (Green)
+- Default state
+- Hand is in neutral zone or no gesture active
+- Waiting for gesture to begin
+
+**GESTURE_START** (Orange)
+- Hand has left neutral zone
+- Tracking movement for potential gesture
+- Checking velocity and distance thresholds
+
+**GESTURE_CONFIRMED** (Red)
+- Valid gesture detected
+- Action executed (swipe/fullscreen)
+- Brief transitional state
+
+**WAIT_FOR_RETURN** (Blue)
+- Gesture complete, ignoring movements
+- Waiting for hand to return to neutral zone
+- Prevents detecting return movement as new gesture
+
+## Visual Feedback
+
+### On-Screen Elements:
+1. **Neutral Zone Box** - Dashed rectangle showing safe area
+2. **State Indicator** - Current state with color coding
+3. **Gesture Progress** - Shows how close to triggering (0-100%)
+4. **Hand Trail** - Visual path during GESTURE_START
+5. **Start Point** - Yellow dot where gesture began
+
+### State Colors:
+- Hand circle changes color based on current state
+- Green → Orange → Red → Blue → Green cycle
+
+## Gesture Requirements
+
+### For Swipe Recognition:
+1. Hand must leave neutral zone
+2. Meet ONE of these criteria:
+   - Distance > 0.15 (15% of screen width)
+   - Velocity > 0.4 (fast movement)
+3. Minimum gesture time: 100ms (filters accidental movements)
+4. Maximum gesture time: 1000ms (timeout)
+
+### For Fullscreen:
+- Only works in IDLE or WAIT_FOR_RETURN states
+- Requires palm score ≥ 85%
+- Hold 5 fingers for 0.5 seconds
+- Returns to WAIT_FOR_RETURN after toggle
+
+## Benefits
+
+### 1. **No False Positives**
+- Return movements ignored in WAIT_FOR_RETURN state
+- Hand must deliberately leave neutral zone to start gesture
+
+### 2. **Clear Intent**
+- Gestures require deliberate movement from center
+- Natural hand positions don't trigger actions
+
+### 3. **Visual Clarity**
+- Always know current state
+- See exactly where neutral zone is
+- Progress indicators show gesture detection
+
+### 4. **Timeout Protection**
+- If hand doesn't return within 2 seconds, auto-reset to IDLE
+- Prevents getting stuck in WAIT_FOR_RETURN
+
+## Configuration
+
+### Adjustable Parameters:
+```javascript
+// Neutral Zone (0-1 normalized coordinates)
+NEUTRAL_ZONE = {
+  xMin: 0.3,  // 30% from left
+  xMax: 0.7,  // 70% from left
+  yMin: 0.3,  // 30% from top
+  yMax: 0.7   // 70% from top
+}
+
+// Gesture Thresholds
+GESTURE_THRESHOLDS = {
+  minDistance: 0.15,        // Movement required
+  minVelocity: 0.4,         // Speed alternative
+  maxReturnTime: 2000,      // Return timeout (ms)
+  gestureTimeout: 1000,     // Gesture timeout (ms)
+  minGestureTime: 100       // Minimum time (ms)
+}
+```
+
+## Usage Flow
+
+1. **Start**: Hand in neutral zone (IDLE)
+2. **Initiate**: Move hand outside zone
+3. **Execute**: Swipe left/right with intent
+4. **Wait**: System enters WAIT_FOR_RETURN
+5. **Return**: Bring hand back to center
+6. **Ready**: System returns to IDLE
+
+## Debugging
+
+The state indicator shows:
+- Current state name and color
+- Whether hand is in neutral zone
+- Gesture progress percentage
+- Real-time state transitions
+
+## Best Practices
+
+1. **Start from Center** - Always begin gestures from neutral zone
+2. **Deliberate Movements** - Make intentional, clear gestures
+3. **Return to Center** - Complete the cycle for clean detection
+4. **Watch State Indicator** - Understand current system state
+
+This approach creates a robust gesture system that feels natural and prevents accidental activations!

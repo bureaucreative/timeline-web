@@ -1,0 +1,75 @@
+# Z-DEPTH GESTURE DETECTION
+
+## Overview
+Enhanced gesture control system that uses Z-depth detection to distinguish between:
+- **Palm facing camera** → Fullscreen gestures
+- **Hand in profile** → Navigation/swipe gestures
+
+## How It Works
+
+### Z-Depth Detection Algorithm
+The system analyzes multiple hand characteristics to determine orientation:
+
+1. **Hand Aspect Ratio**
+   - Palm facing: Wider (higher width/height ratio)
+   - Profile: Narrower (lower width/height ratio)
+
+2. **Knuckle Spacing**
+   - Palm facing: Larger spacing between finger knuckles
+   - Profile: Compressed knuckle spacing
+
+3. **Thumb Position**
+   - Palm facing: Thumb more separated from index finger
+   - Profile: Thumb closer or overlapping with other fingers
+
+### Gesture Modes
+
+#### Palm Facing Mode (Green indicator)
+- ✋ Show 5 fingers → Enter fullscreen
+- ✊ Close hand → Exit fullscreen
+- Natural "stop" gesture for viewing
+
+#### Side View Mode (Blue indicator)
+- 👉 Swipe left → Previous image
+- 👈 Swipe right → Next image
+- Natural sideways motion for navigation
+#### Transition Mode (Orange indicator)
+- System is detecting hand position change
+- Wait for stable orientation
+
+## Visual Feedback
+
+1. **Depth Indicator Bar** (top right)
+   - Shows real-time hand orientation
+   - Color-coded: Green (palm), Blue (profile), Orange (transition)
+
+2. **Hand Visualization**
+   - Color changes based on detected orientation
+   - Shows hand skeleton for debugging
+
+3. **Status Messages**
+   - Context-aware instructions based on current mode
+
+## Technical Details
+
+### Palm Score Calculation
+```
+palmScore = (aspectRatio × 0.4) + (knuckleSpacing × 0.4) + (thumbDistance × 0.2)
+```
+
+### Thresholds
+- Palm mode: Score > 60
+- Profile mode: Score < 40
+- Transition: Score 40-60
+
+## Benefits
+1. More natural gesture interaction
+2. Prevents accidental mode switching
+3. Clear visual feedback for user orientation
+4. Intuitive gesture mapping (palm = stop/view, profile = navigate)
+
+## Usage Tips
+- Keep hand steady for reliable detection
+- Face palm directly at camera for fullscreen
+- Turn hand sideways for navigation
+- Watch the depth indicator for feedback

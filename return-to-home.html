@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Return to Home - Gesture System</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+    
+    /* Home position indicator */
+    .home-position {
+      position: fixed;
+      width: 200px;  /* Doubled from 100px */
+      height: 200px; /* Doubled from 100px */
+      border: 3px dashed rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 15;
+      display: none;
+      background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
+      opacity: 0.9;  /* Slightly transparent */
+    }
+    
+    .home-position.active {
+      display: block;
+    }
+    
+    .home-position.waiting {
+      border-color: rgba(255, 165, 0, 0.8);
+      background: radial-gradient(circle, rgba(255,165,0,0.3) 0%, rgba(255,165,0,0.1) 50%, transparent 70%);
+      animation: pulse 1.5s ease-in-out infinite;
+      box-shadow: 0 0 30px rgba(255, 165, 0, 0.5);
+    }
+    
+    .home-position.ready {
+      border-color: rgba(68, 255, 68, 0.8);
+      background: radial-gradient(circle, rgba(68,255,68,0.3) 0%, rgba(68,255,68,0.1) 50%, transparent 70%);
+      box-shadow: 0 0 30px rgba(68, 255, 68, 0.5);
+    }
+    
+    /* Center dot in home circle */
+    .home-position::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    
+    .home-position.waiting::after {
+      background: rgba(255, 165, 0, 0.8);
+    }
+    
+    .home-position.ready::after {
+      background: rgba(68, 255, 68, 0.8);
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.1); opacity: 1; }
+      100% { transform: scale(1); opacity: 0.8; }
+    }
+    
+    .home-label {
+      position: absolute;
+      top: -40px;  /* Adjusted for larger circle */
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 14px;  /* Slightly larger text */
+      font-weight: bold;
+      padding: 6px 16px;
+      border-radius: 15px;
+      white-space: nowrap;
+      background: rgba(0, 0, 0, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    /* Status display */
+    #status {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(20, 20, 20, 0.9);
+      padding: 20px 40px;
+      border-radius: 30px;
+      font-size: 20px;
+      z-index: 100;
+      text-align: center;
+      min-width: 400px;
+    }
+    
+    .status-state {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    .status-ready { color: #44ff44; }
+    .status-waiting { color: #ffaa44; }
+    .status-gesture { color: #ff4444; }
+    
+    /* Debug info */
+    #debug-info {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(20, 20, 20, 0.9);
+      padding: 15px;
+      border-radius: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      z-index: 100;
+      max-width: 400px;
+    }
+    
+    .debug-line {
+      margin: 5px 0;
+    }
+    
+    .hand-info {
+      margin-top: 10px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 5px;
+    }
+    
+    /* Distance indicator */
+    .distance-bar {
+      width: 200px;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 5px;
+      margin-top: 5px;
+      overflow: hidden;
+    }
+    
+    .distance-fill {
+      height: 100%;
+      background: linear-gradient(to right, #44ff44, #ffaa44, #ff4444);
+      width: 0%;
+      transition: width 0.1s ease;
+    }
+    
+    /* Gesture trail */
+    .gesture-trail {
+      position: fixed;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.5);
+      pointer-events: none;
+      z-index: 20;
+      animation: fadeOut 1s ease-out forwards;
+    }
+    
+    @keyframes fadeOut {
+      to { opacity: 0; transform: scale(0.5); }
+    }
+    
+    /* Image display */
+    #image-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+    }
+    
+    #current-image {
+      max-width: 80%;
+      max-height: 80%;
+      object-fit: contain;
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      transform-origin: center center;
+    }
+    
+    #current-image.zoomed {
+      max-width: 100%;
+      max-height: 100%;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      animation: zoomPulse 0.5s ease-out;
+    }
+    
+    @keyframes zoomPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    
+    /* Instructions */
+    #instructions {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(20, 20, 20, 0.9);
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 300px;
+      z-index: 100;
+    }
+    
+    .instruction-step {
+      margin: 10px 0;
+      padding-left: 20px;
+      position: relative;
+    }
+    
+    .instruction-step:before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      color: #4a9eff;
+    }
+    
+    /* Side indicators */
+    .side-label {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.2);
+      padding: 10px;
+      z-index: 5;
+    }
+    
+    .side-label.left {
+      left: 10px;
+    }
+    
+    .side-label.right {
+      right: 10px;
+    }
+    
+    /* Zoom indicator */
+    #zoom-indicator {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(20, 20, 20, 0.9);
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 16px;
+      z-index: 100;
+      display: none;
+    }
+    
+    #zoom-indicator.active {
+      display: block;
+      background: rgba(68, 255, 68, 0.2);
+      border: 2px solid rgba(68, 255, 68, 0.8);
+    }
+    
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <video id="video" autoplay playsinline style="display:none;"></video>
+  <canvas id="canvas"></canvas>
+  
+  <!-- Side indicators -->
+  <div class="side-label left">LEFT</div>
+  <div class="side-label right">RIGHT</div>
+  
+  <!-- Home position indicators -->
+  <div class="home-position" id="left-home">
+    <div class="home-label">Left Home</div>
+  </div>
+  <div class="home-position" id="right-home">
+    <div class="home-label">Right Home</div>
+  </div>
+  
+  <!-- Image display -->
+  <div id="image-container">
+    <img id="current-image" src="" alt="Timeline image">
+  </div>
+  
+  <!-- Status -->
+  <div id="status">
+    <div class="status-state status-ready">READY</div>
+    <div>Show your hand to set home position<br>
+    <span style="font-size: 14px; opacity: 0.7;">(Right hand appears on right side)</span></div>
+  </div>
+  
+  <!-- Zoom indicator -->
+  <div id="zoom-indicator">🔍 ZOOMED</div>
+  
+  <!-- Instructions -->
+  <div id="instructions">
+    <h3>How it works:</h3>
+    <div class="instruction-step">Show hand → sets home (0.5s)</div>
+    <div class="instruction-step">Swipe left/right to navigate</div>
+    <div class="instruction-step">Return to large home circle</div>
+    <div class="instruction-step">Wait for green = ready</div>
+    <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 15px;">
+      <strong>Zoom gestures:</strong>
+      <div class="instruction-step">🖐️ Show palm (5 fingers) → Zoom in</div>
+      <div class="instruction-step">✊ Close hand → Zoom out</div>
+    </div>
+    <p style="margin-top: 20px; font-size: 12px; opacity: 0.8;">
+      ✋ Hands appear on their correct sides<br>
+      (Right hand = right side)<br>
+      ⭕ Home circle is 200px wide<br>
+      ⚡ Faster detection (8% threshold)
+    </p>
+  </div>
+  
+  <!-- Debug info -->
+  <div id="debug-info">
+    <div class="debug-line">State: <span id="system-state">READY</span></div>
+    <div class="debug-line" style="font-size: 10px; opacity: 0.7;">Hands shown on natural sides</div>
+    <div class="hand-info">
+      <strong>Left Hand (Blue):</strong><br>
+      Visible: <span id="left-visible">No</span><br>
+      Home Set: <span id="left-home-set">No</span><br>
+      Distance from Home: <span id="left-distance">-</span><br>
+      Fingers: <span id="left-fingers">0</span> | Palm: <span id="left-palm">0%</span><br>
+      <div class="distance-bar">
+        <div class="distance-fill" id="left-distance-bar"></div>
+      </div>
+    </div>
+    <div class="hand-info">
+      <strong>Right Hand (Pink):</strong><br>
+      Visible: <span id="right-visible">No</span><br>
+      Home Set: <span id="right-home-set">No</span><br>
+      Distance from Home: <span id="right-distance">-</span><br>
+      Fingers: <span id="right-fingers">0</span> | Palm: <span id="right-palm">0%</span><br>
+      <div class="distance-bar">
+        <div class="distance-fill" id="right-distance-bar"></div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script>
+    // Configuration
+    const MIRROR_DISPLAY = true;  // Mirror the display so hands appear on correct sides
+    const HOME_THRESHOLD = 0.08;  // Increased from 0.05 to 0.08 (8% of screen) for faster detection
+    const SWIPE_THRESHOLD = 0.15;  // 15% of screen for swipe
+    const HOME_SET_DELAY = 500;   // Reduced from 1000ms to 500ms for faster setup
+    
+    // States
+    const States = {
+      READY: 'READY',              // Ready for gesture
+      GESTURE_ACTIVE: 'GESTURE_ACTIVE',  // Performing gesture
+      WAITING_FOR_HOME: 'WAITING_FOR_HOME'  // Waiting to return home
+    };
+    
+    // Track both hands
+    const handTracking = {
+      left: {
+        visible: false,
+        position: null,
+        homePosition: null,
+        homeSetTime: 0,
+        state: States.READY,
+        lastGestureDirection: null,
+        trailPoints: [],
+        fingerCount: 0,
+        palmScore: 0
+      },
+      right: {
+        visible: false,
+        position: null,
+        homePosition: null,
+        homeSetTime: 0,
+        state: States.READY,
+        lastGestureDirection: null,
+        trailPoints: [],
+        fingerCount: 0,
+        palmScore: 0
+      }
+    };
+    
+    // Sample images
+    const images = [
+      'https://picsum.photos/800/600?random=1',
+      'https://picsum.photos/800/600?random=2',
+      'https://picsum.photos/800/600?random=3',
+      'https://picsum.photos/800/600?random=4',
+      'https://picsum.photos/800/600?random=5'
+    ];
+    let currentImageIndex = 0;
+    let isZoomed = false;
+    let palmHoldTime = 0;
+    const PALM_HOLD_THRESHOLD = 15; // frames to hold palm before zoom (~0.5 seconds)
+    const PALM_SCORE_THRESHOLD = 65; // Lower threshold for easier detection
+    
+    // Initialize MediaPipe
+    const hands = new Hands({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    });
+    
+    hands.setOptions({
+      maxNumHands: 2,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+    
+    // Get elements
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const status = document.getElementById('status');
+    const statusState = status.querySelector('.status-state');
+    const statusText = status.querySelector('div:last-child');
+    const leftHomeEl = document.getElementById('left-home');
+    const rightHomeEl = document.getElementById('right-home');
+    
+    // Canvas setup
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    
+    // Detect hand side (corrected for display)
+    function detectHandSide(x) {
+      // For display purposes, we want right hand on right side
+      // So we DON'T reverse the detection
+      return x < 0.5 ? 'left' : 'right';
+    }
+    
+    // Calculate distance between two points
+    function getDistance(p1, p2) {
+      const dx = p1.x - p2.x;
+      const dy = p1.y - p2.y;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+    
+    // Count extended fingers
+    function countFingers(landmarks) {
+      let count = 0;
+      
+      // Thumb - check if tip is far from palm
+      const thumbTip = landmarks[4];
+      const thumbBase = landmarks[2];
+      const palmBase = landmarks[0];
+      const thumbDist = getDistance(thumbTip, palmBase);
+      const thumbBaseDist = getDistance(thumbBase, palmBase);
+      if (thumbDist > thumbBaseDist * 1.3) count++;
+      
+      // Other fingers - check if fingertip is above MCP joint
+      const fingerTips = [8, 12, 16, 20];
+      const fingerMCPs = [5, 9, 13, 17];
+      
+      for (let i = 0; i < 4; i++) {
+        if (landmarks[fingerTips[i]].y < landmarks[fingerMCPs[i]].y) {
+          count++;
+        }
+      }
+      
+      return count;
+    }
+    
+    // Calculate palm score (how much the palm faces the camera)
+    function calculatePalmScore(landmarks) {
+      // Check if all fingers are extended and visible
+      const fingerVisibility = landmarks.every(point => point.visibility > 0.8);
+      if (!fingerVisibility) return 0;
+      
+      // Calculate hand span (distance between thumb and pinky)
+      const thumbTip = landmarks[4];
+      const pinkyTip = landmarks[20];
+      const handSpan = getDistance(thumbTip, pinkyTip);
+      
+      // Calculate palm area approximation
+      const palmBase = landmarks[0];
+      const indexMCP = landmarks[5];
+      const pinkyMCP = landmarks[17];
+      const palmWidth = getDistance(indexMCP, pinkyMCP);
+      
+      // Higher score when hand is spread and facing camera
+      const score = Math.min((handSpan * palmWidth) * 500, 100);
+      return Math.round(score);
+    }
+    
+    // Check if hand is at home position
+    function isAtHome(hand) {
+      const tracking = handTracking[hand];
+      if (!tracking.homePosition || !tracking.position) return false;
+      
+      const distance = getDistance(tracking.position, tracking.homePosition);
+      return distance < HOME_THRESHOLD;
+    }
+    
+    // Update home position indicator
+    function updateHomeIndicator(hand) {
+      const tracking = handTracking[hand];
+      const homeEl = hand === 'left' ? leftHomeEl : rightHomeEl;
+      
+      if (tracking.homePosition) {
+        // Home position is already stored in mirrored coordinates
+        const x = tracking.homePosition.x * canvas.width;
+        const y = tracking.homePosition.y * canvas.height;
+        
+        homeEl.style.left = `${x - 100}px`;  // Changed from 50px to 100px (half of 200px)
+        homeEl.style.top = `${y - 100}px`;   // Changed from 50px to 100px (half of 200px)
+        homeEl.classList.add('active');
+        
+        // Update visual state
+        homeEl.classList.remove('ready', 'waiting');
+        if (tracking.state === States.WAITING_FOR_HOME) {
+          homeEl.classList.add('waiting');
+        } else if (tracking.state === States.READY && isAtHome(hand)) {
+          homeEl.classList.add('ready');
+        }
+      } else {
+        homeEl.classList.remove('active');
+      }
+    }
+    
+    // Navigate images
+    function navigatePrevious() {
+      currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
+      updateImage();
+    }
+    
+    function navigateNext() {
+      currentImageIndex = (currentImageIndex + 1) % images.length;
+      updateImage();
+    }
+    
+    function updateImage() {
+      document.getElementById('current-image').src = images[currentImageIndex];
+    }
+    
+    // Toggle image zoom
+    function setZoom(zoomed) {
+      isZoomed = zoomed;
+      const img = document.getElementById('current-image');
+      const zoomIndicator = document.getElementById('zoom-indicator');
+      
+      if (zoomed) {
+        img.classList.add('zoomed');
+        zoomIndicator.classList.add('active');
+      } else {
+        img.classList.remove('zoomed');
+        zoomIndicator.classList.remove('active');
+      }
+    }
+    
+    // Create trail effect
+    function createTrailPoint(x, y, color) {
+      const trail = document.createElement('div');
+      trail.className = 'gesture-trail';
+      trail.style.left = `${x}px`;
+      trail.style.top = `${y}px`;
+      trail.style.background = color;
+      document.body.appendChild(trail);
+      
+      setTimeout(() => trail.remove(), 1000);
+    }
+    
+    // Update debug info
+    function updateDebugInfo() {
+      // System state
+      const states = [handTracking.left.state, handTracking.right.state];
+      const overallState = states.includes(States.WAITING_FOR_HOME) ? 'WAITING' :
+                          states.includes(States.GESTURE_ACTIVE) ? 'GESTURE' : 'READY';
+      document.getElementById('system-state').textContent = overallState;
+      
+      // Left hand
+      document.getElementById('left-visible').textContent = handTracking.left.visible ? 'Yes' : 'No';
+      document.getElementById('left-home-set').textContent = handTracking.left.homePosition ? 'Yes' : 'No';
+      document.getElementById('left-fingers').textContent = handTracking.left.fingerCount;
+      document.getElementById('left-palm').textContent = handTracking.left.palmScore + '%';
+      
+      if (handTracking.left.homePosition && handTracking.left.position) {
+        const distance = getDistance(handTracking.left.position, handTracking.left.homePosition);
+        const percentage = Math.min(distance / SWIPE_THRESHOLD * 100, 100);
+        const percentageText = `${Math.round(distance * 100)}%`;
+        document.getElementById('left-distance').textContent = percentageText;
+        document.getElementById('left-distance-bar').style.width = `${percentage}%`;
+        
+        // Add "CLOSE!" indicator when near home
+        if (distance < HOME_THRESHOLD * 1.5 && handTracking.left.state === States.WAITING_FOR_HOME) {
+          document.getElementById('left-distance').textContent = percentageText + ' - CLOSE!';
+          document.getElementById('left-distance-bar').style.background = 
+            'linear-gradient(to right, #44ff44, #44ff44)';
+        } else {
+          document.getElementById('left-distance-bar').style.background = 
+            'linear-gradient(to right, #44ff44, #ffaa44, #ff4444)';
+        }
+      } else {
+        document.getElementById('left-distance').textContent = '-';
+        document.getElementById('left-distance-bar').style.width = '0%';
+      }
+      
+      // Right hand
+      document.getElementById('right-visible').textContent = handTracking.right.visible ? 'Yes' : 'No';
+      document.getElementById('right-home-set').textContent = handTracking.right.homePosition ? 'Yes' : 'No';
+      document.getElementById('right-fingers').textContent = handTracking.right.fingerCount;
+      document.getElementById('right-palm').textContent = handTracking.right.palmScore + '%';
+      
+      if (handTracking.right.homePosition && handTracking.right.position) {
+        const distance = getDistance(handTracking.right.position, handTracking.right.homePosition);
+        const percentage = Math.min(distance / SWIPE_THRESHOLD * 100, 100);
+        const percentageText = `${Math.round(distance * 100)}%`;
+        document.getElementById('right-distance').textContent = percentageText;
+        document.getElementById('right-distance-bar').style.width = `${percentage}%`;
+        
+        // Add "CLOSE!" indicator when near home
+        if (distance < HOME_THRESHOLD * 1.5 && handTracking.right.state === States.WAITING_FOR_HOME) {
+          document.getElementById('right-distance').textContent = percentageText + ' - CLOSE!';
+          document.getElementById('right-distance-bar').style.background = 
+            'linear-gradient(to right, #44ff44, #44ff44)';
+        } else {
+          document.getElementById('right-distance-bar').style.background = 
+            'linear-gradient(to right, #44ff44, #ffaa44, #ff4444)';
+        }
+      } else {
+        document.getElementById('right-distance').textContent = '-';
+        document.getElementById('right-distance-bar').style.width = '0%';
+      }
+    }
+    
+    // Update status display
+    function updateStatus() {
+      const leftState = handTracking.left.state;
+      const rightState = handTracking.right.state;
+      
+      if (leftState === States.WAITING_FOR_HOME || rightState === States.WAITING_FOR_HOME) {
+        statusState.textContent = 'WAITING';
+        statusState.className = 'status-state status-waiting';
+        statusText.innerHTML = '↩️ Return hand to home circle<br><span style="font-size: 14px; opacity: 0.7;">Move to the large orange circle</span>';
+      } else if (leftState === States.GESTURE_ACTIVE || rightState === States.GESTURE_ACTIVE) {
+        statusState.textContent = 'GESTURE DETECTED';
+        statusState.className = 'status-state status-gesture';
+        statusText.innerHTML = '👋 Performing gesture...';
+      } else {
+        statusState.textContent = 'READY';
+        statusState.className = 'status-state status-ready';
+        if (!handTracking.left.homePosition && !handTracking.right.homePosition) {
+          statusText.innerHTML = 'Show your hand to set home position<br><span style="font-size: 14px; opacity: 0.7;">(Right hand appears on right side)</span>';
+        } else if (isZoomed) {
+          statusText.innerHTML = '✅ Ready for gesture - swipe left or right<br><span style="font-size: 14px; opacity: 0.7;">✊ Close hand to zoom out</span>';
+        } else {
+          statusText.innerHTML = '✅ Ready for gesture - swipe left or right<br><span style="font-size: 14px; opacity: 0.7;">🖐️ Show palm to zoom in</span>';
+        }
+      }
+    }
+    
+    // Process hand results
+    hands.onResults((results) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Mark hands as not visible
+      handTracking.left.visible = false;
+      handTracking.right.visible = false;
+      
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        results.multiHandLandmarks.forEach((landmarks, index) => {
+          const handSide = detectHandSide(landmarks[9].x);
+          const tracking = handTracking[handSide];
+          const palmCenter = landmarks[9];
+          
+          // Update visibility and position (mirrored)
+          tracking.visible = true;
+          tracking.position = { 
+            x: 1 - palmCenter.x,  // Mirror the X coordinate
+            y: palmCenter.y 
+          };
+          
+          // Count fingers and calculate palm score
+          const fingerCount = countFingers(landmarks);
+          tracking.fingerCount = fingerCount;
+          tracking.palmScore = calculatePalmScore(landmarks);
+          
+          // Set home position if not set
+          if (!tracking.homePosition) {
+            if (!tracking.homeSetTime) {
+              tracking.homeSetTime = Date.now();
+            } else if (Date.now() - tracking.homeSetTime > HOME_SET_DELAY) {
+              tracking.homePosition = { ...tracking.position };
+              console.log(`${handSide} hand home position set`);
+            }
+          }
+          
+          // State machine
+          switch (tracking.state) {
+            case States.READY:
+              if (tracking.homePosition) {
+                const distance = getDistance(tracking.position, tracking.homePosition);
+                
+                // Check for swipe gesture
+                if (distance > SWIPE_THRESHOLD) {
+                  const dx = tracking.position.x - tracking.homePosition.x;
+                  // Since we're mirroring display, swipe directions are already correct
+                  const direction = dx > 0 ? 'right' : 'left';
+                  
+                  // Execute gesture
+                  tracking.state = States.GESTURE_ACTIVE;
+                  tracking.lastGestureDirection = direction;
+                  
+                  if (direction === 'left') {
+                    navigatePrevious();
+                    statusText.innerHTML = `⬅️ Previous image (${handSide} hand)`;
+                  } else {
+                    navigateNext();
+                    statusText.innerHTML = `➡️ Next image (${handSide} hand)`;
+                  }
+                  
+                  setTimeout(() => {
+                    tracking.state = States.WAITING_FOR_HOME;
+                  }, 300);
+                }
+              }
+              break;
+              
+            case States.GESTURE_ACTIVE:
+              // Transitional state, handled by timeout
+              break;
+              
+            case States.WAITING_FOR_HOME:
+              if (isAtHome(handSide)) {
+                tracking.state = States.READY;
+                console.log(`${handSide} hand returned home`);
+              }
+              break;
+          }
+          
+          // Palm gesture detection (independent of swipe state)
+          // Open palm with 5 fingers = zoom in
+          if (fingerCount === 5 && tracking.palmScore > PALM_SCORE_THRESHOLD) {
+            if (!isZoomed) {
+              palmHoldTime++;
+              if (palmHoldTime > PALM_HOLD_THRESHOLD) {
+                setZoom(true);
+                statusText.innerHTML = `🖐️ Image zoomed (${handSide} hand)`;
+                palmHoldTime = 0;
+              } else {
+                const progress = Math.round((palmHoldTime / PALM_HOLD_THRESHOLD) * 100);
+                statusText.innerHTML = `🖐️ Hold palm steady... ${progress}%`;
+              }
+            }
+          } 
+          // Closed hand (0-1 fingers) = zoom out
+          else if (fingerCount <= 1 && isZoomed) {
+            setZoom(false);
+            statusText.innerHTML = `✊ Image restored (${handSide} hand)`;
+            palmHoldTime = 0;
+          } 
+          else {
+            palmHoldTime = 0;
+          }
+          
+          // Add trail points (using mirrored coordinates)
+          if (tracking.state === States.GESTURE_ACTIVE) {
+            const x = (1 - palmCenter.x) * canvas.width;
+            const y = palmCenter.y * canvas.height;
+            const color = handSide === 'left' ? 'rgba(74, 158, 255, 0.6)' : 'rgba(255, 74, 158, 0.6)';
+            createTrailPoint(x, y, color);
+          }
+          
+          // Draw hand
+          drawHand(landmarks, handSide, tracking.state);
+        });
+      } else {
+        // No hands detected - reset home positions
+        handTracking.left.homePosition = null;
+        handTracking.left.homeSetTime = 0;
+        handTracking.left.state = States.READY;
+        handTracking.right.homePosition = null;
+        handTracking.right.homeSetTime = 0;
+        handTracking.right.state = States.READY;
+      }
+      
+      // Update UI
+      updateHomeIndicator('left');
+      updateHomeIndicator('right');
+      updateDebugInfo();
+      updateStatus();
+    });
+    
+    // Draw hand visualization
+    function drawHand(landmarks, handSide, state) {
+      const baseColor = handSide === 'left' ? 
+        'rgba(74, 158, 255, 0.8)' : 'rgba(255, 74, 158, 0.8)';
+      
+      let color = baseColor;
+      if (state === States.WAITING_FOR_HOME) {
+        color = 'rgba(255, 165, 0, 0.8)';  // Orange when waiting
+      } else if (state === States.GESTURE_ACTIVE) {
+        color = 'rgba(255, 68, 68, 0.8)';  // Red during gesture
+      }
+      
+      // Mirror the X coordinates for display
+      const mirroredLandmarks = landmarks.map(point => ({
+        x: 1 - point.x,  // Flip horizontally
+        y: point.y,
+        z: point.z
+      }));
+      
+      // Draw connections
+      const connections = [
+        [0, 1], [1, 2], [2, 3], [3, 4],
+        [0, 5], [5, 6], [6, 7], [7, 8],
+        [5, 9], [9, 10], [10, 11], [11, 12],
+        [9, 13], [13, 14], [14, 15], [15, 16],
+        [13, 17], [17, 18], [18, 19], [19, 20],
+        [0, 17]
+      ];
+      
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      
+      connections.forEach(([start, end]) => {
+        ctx.beginPath();
+        ctx.moveTo(mirroredLandmarks[start].x * canvas.width, mirroredLandmarks[start].y * canvas.height);
+        ctx.lineTo(mirroredLandmarks[end].x * canvas.width, mirroredLandmarks[end].y * canvas.height);
+        ctx.stroke();
+      });
+      
+      // Draw joints
+      ctx.fillStyle = color;
+      mirroredLandmarks.forEach(point => {
+        ctx.beginPath();
+        ctx.arc(point.x * canvas.width, point.y * canvas.height, 5, 0, 2 * Math.PI);
+        ctx.fill();
+      });
+      
+      // Draw palm center with visual feedback for palm detection
+      const palmCenter = mirroredLandmarks[9];
+      ctx.fillStyle = color;
+      
+      // If detecting palm gesture, show visual feedback
+      if (tracking.fingerCount === 5 && tracking.palmScore > 50) {
+        // Draw palm detection circle
+        ctx.strokeStyle = 'rgba(68, 255, 68, 0.5)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(palmCenter.x * canvas.width, palmCenter.y * canvas.height, 30, 0, 2 * Math.PI);
+        ctx.stroke();
+        
+        // Draw palm score text
+        ctx.fillStyle = 'rgba(68, 255, 68, 0.9)';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(
+          `Palm: ${tracking.palmScore}%`,
+          palmCenter.x * canvas.width,
+          palmCenter.y * canvas.height - 40
+        );
+      }
+      
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(palmCenter.x * canvas.width, palmCenter.y * canvas.height, 10, 0, 2 * Math.PI);
+      ctx.fill();
+      
+      // Draw line to home if waiting
+      const tracking = handTracking[handSide];
+      if (state === States.WAITING_FOR_HOME && tracking.homePosition) {
+        ctx.strokeStyle = 'rgba(255, 165, 0, 0.5)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([10, 5]);
+        ctx.beginPath();
+        ctx.moveTo(palmCenter.x * canvas.width, palmCenter.y * canvas.height);
+        ctx.lineTo((1 - tracking.homePosition.x) * canvas.width, tracking.homePosition.y * canvas.height);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Draw arrow pointing to home
+        const angle = Math.atan2(
+          tracking.homePosition.y - mirroredLandmarks[9].y,
+          (1 - tracking.homePosition.x) - mirroredLandmarks[9].x
+        );
+        const arrowX = palmCenter.x * canvas.width + Math.cos(angle) * 30;
+        const arrowY = palmCenter.y * canvas.height + Math.sin(angle) * 30;
+        
+        ctx.fillStyle = 'rgba(255, 165, 0, 0.8)';
+        ctx.beginPath();
+        ctx.moveTo(arrowX, arrowY);
+        ctx.lineTo(arrowX - 10 * Math.cos(angle - 0.5), arrowY - 10 * Math.sin(angle - 0.5));
+        ctx.lineTo(arrowX - 10 * Math.cos(angle + 0.5), arrowY - 10 * Math.sin(angle + 0.5));
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+    
+    // Start camera
+    const camera = new Camera(video, {
+      onFrame: async () => {
+        await hands.send({image: video});
+      },
+      width: 640,
+      height: 480
+    });
+    
+    // Initialize
+    updateImage();
+    camera.start();
+  </script>
+</body>
+</html>

@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Two-Handed Gesture with 3-Action Buffer</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+    
+    /* Hand zone indicators */
+    .hand-zone-left, .hand-zone-right {
+      position: fixed;
+      top: 20%;
+      width: 25%;
+      height: 60%;
+      border: 2px dashed rgba(74, 158, 255, 0.3);
+      background: rgba(74, 158, 255, 0.05);
+      pointer-events: none;
+      z-index: 5;
+      transition: all 0.3s ease;
+    }
+    
+    .hand-zone-left.active {
+      border-color: rgba(74, 158, 255, 0.8);
+      background: rgba(74, 158, 255, 0.15);
+    }
+    
+    .hand-zone-right.active {
+      border-color: rgba(255, 74, 158, 0.8);
+      background: rgba(255, 74, 158, 0.15);
+    }
+    
+    .hand-zone-left {
+      left: 0;
+    }
+    
+    .hand-zone-right {
+      right: 0;
+    }
+    
+    .zone-label {
+      position: absolute;
+      top: -30px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 14px;
+      color: rgba(74, 158, 255, 0.8);
+      text-transform: uppercase;
+    }
+    
+    .zone-hand-indicator {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      text-align: center;
+    }
+    
+    /* Action counter display */
+    #action-counter {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1000;
+      display: none;
+    }
+    
+    .waiting-indicator {
+      background: rgba(20, 20, 20, 0.95);
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+    
+    .action-dots {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    
+    .action-dot {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      transition: all 0.3s ease;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .action-dot.filled {
+      background: #4a9eff;
+      transform: scale(1.2);
+      border-color: #4a9eff;
+      box-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+    }
+    
+    .waiting-text {
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+    
+    /* Status display */
+    #status {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(20, 20, 20, 0.9);
+      padding: 15px 30px;
+      border-radius: 30px;
+      font-size: 18px;
+      z-index: 100;
+    }
+    
+    /* Debug info */
+    #debug-info {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(20, 20, 20, 0.9);
+      padding: 15px;
+      border-radius: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      z-index: 100;
+      max-width: 300px;
+    }
+    
+    .debug-line {
+      margin: 5px 0;
+    }
+    
+    /* Hand state indicators */
+    .hand-state {
+      margin-top: 10px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 5px;
+    }
+    
+    .hand-state.active {
+      background: rgba(74, 158, 255, 0.2);
+      border: 1px solid rgba(74, 158, 255, 0.5);
+    }
+    
+    /* Image display */
+    #image-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+    }
+    
+    #current-image {
+      max-width: 80%;
+      max-height: 80%;
+      object-fit: contain;
+    }
+    
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <video id="video" autoplay playsinline style="display:none;"></video>
+  <canvas id="canvas"></canvas>
+  
+  <!-- Hand zones visualization -->
+  <div class="hand-zone-left">
+    <div class="zone-label">Left Zone</div>
+  </div>
+  <div class="hand-zone-right">
+    <div class="zone-label">Right Zone</div>
+  </div>
+  
+  <!-- Action counter -->
+  <div id="action-counter"></div>
+  
+  <!-- Image display -->
+  <div id="image-container">
+    <img id="current-image" src="" alt="Timeline image">
+  </div>
+  
+  <!-- Status -->
+  <div id="status">Show your hands on the sides</div>
+  
+  <!-- Debug info -->
+  <div id="debug-info">
+    <div class="debug-line">System: <span id="system-state">Ready</span></div>
+    <div class="debug-line">Actions: <span id="action-count">0</span></div>
+    <div class="hand-state" id="left-hand-state">
+      <strong>Left Hand (Blue):</strong><br>
+      Visible: <span id="left-visible">No</span><br>
+      Fingers: <span id="left-fingers">0</span><br>
+      In Left Zone: <span id="left-zone">No</span>
+    </div>
+    <div class="hand-state" id="right-hand-state">
+      <strong>Right Hand (Pink):</strong><br>
+      Visible: <span id="right-visible">No</span><br>
+      Fingers: <span id="right-fingers">0</span><br>
+      In Right Zone: <span id="right-zone">No</span>
+    </div>
+  </div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script>
+    /*
+     * TWO-HANDED GESTURE SYSTEM WITH 3-ACTION BUFFER
+     * 
+     * Hand Zone Mapping:
+     * - Your RIGHT hand controls the RIGHT zone (75-100% of screen)
+     * - Your LEFT hand controls the LEFT zone (0-25% of screen)
+     * 
+     * Note: Due to camera mirroring, your right hand appears on the 
+     * left side of the video feed, but it still controls the right zone!
+     * 
+     * Hand Colors:
+     * - BLUE = Left hand
+     * - PINK = Right hand
+     */
+    
+    // Configuration for side zones (not center)
+    const MIRROR_MODE = true; // Set to false if camera is not mirrored
+    
+    const HAND_ZONES = {
+      LEFT: {
+        xMin: 0.0,
+        xMax: 0.25,  // Left 25% of screen
+        yMin: 0.2,
+        yMax: 0.8
+      },
+      RIGHT: {
+        xMin: 0.75,  // Right 25% of screen
+        xMax: 1.0,
+        yMin: 0.2,
+        yMax: 0.8
+      }
+    };
+
+    // Gesture state with action buffer
+    const gestureState = {
+      actionBuffer: [],          // Store last N actions
+      bufferSize: 3,            // Wait for 3 actions after gesture
+      isWaiting: false,         // Currently in waiting period
+      lastGestureTime: 0,       // When last gesture was executed
+      activeHand: null,         // Which hand performed last gesture
+      actionCounter: 0          // Count actions since last gesture
+    };
+
+    // Action types to track
+    const ActionType = {
+      MOVE_LEFT: 'MOVE_LEFT',
+      MOVE_RIGHT: 'MOVE_RIGHT',
+      MOVE_UP: 'MOVE_UP',
+      MOVE_DOWN: 'MOVE_DOWN',
+      HAND_OPEN: 'HAND_OPEN',
+      HAND_CLOSE: 'HAND_CLOSE',
+      HAND_APPEAR: 'HAND_APPEAR',
+      HAND_DISAPPEAR: 'HAND_DISAPPEAR'
+    };
+
+    // Track both hands separately
+    const handTracking = {
+      left: {
+        position: null,
+        lastPosition: null,
+        visible: false,
+        fingerCount: 0,
+        restingZone: HAND_ZONES.LEFT,   // Left hand controls left zone
+        history: []
+      },
+      right: {
+        position: null,
+        lastPosition: null,
+        visible: false,
+        fingerCount: 0,
+        restingZone: HAND_ZONES.RIGHT,  // Right hand controls right zone
+        history: []
+      }
+    };
+
+    // Sample images for navigation
+    const images = [
+      'https://picsum.photos/800/600?random=1',
+      'https://picsum.photos/800/600?random=2',
+      'https://picsum.photos/800/600?random=3',
+      'https://picsum.photos/800/600?random=4',
+      'https://picsum.photos/800/600?random=5'
+    ];
+    let currentImageIndex = 0;
+    let isFullscreen = false;
+
+    // Initialize MediaPipe Hands
+    const hands = new Hands({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    });
+    
+    hands.setOptions({
+      maxNumHands: 2,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+
+    // Canvas setup
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const status = document.getElementById('status');
+
+    // Set canvas size
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Detect which hand based on position (accounting for mirror mode)
+    function detectHandSide(x) {
+      if (MIRROR_MODE) {
+        // Camera is mirrored, so right hand appears on left side
+        return x < 0.5 ? 'right' : 'left';
+      } else {
+        // Non-mirrored mode
+        return x < 0.5 ? 'left' : 'right';
+      }
+    }
+
+    // Check if hand is in its resting zone
+    function isInRestingZone(hand, position) {
+      const zone = handTracking[hand].restingZone;
+      return position.x >= zone.xMin && position.x <= zone.xMax &&
+             position.y >= zone.yMin && position.y <= zone.yMax;
+    }
+
+    // Count extended fingers
+    function countFingers(landmarks) {
+      let count = 0;
+      // Simplified finger counting
+      const fingerTips = [4, 8, 12, 16, 20];
+      const fingerBases = [2, 5, 9, 13, 17];
+      
+      for (let i = 0; i < 5; i++) {
+        if (landmarks[fingerTips[i]].y < landmarks[fingerBases[i]].y) {
+          count++;
+        }
+      }
+      return count;
+    }
+
+    // Record any hand action
+    function recordAction(action, hand) {
+      console.log(`Action: ${action} (${hand} hand)`);
+      
+      gestureState.actionBuffer.push({
+        type: action,
+        hand: hand,
+        timestamp: Date.now()
+      });
+      
+      // Keep buffer size limited
+      if (gestureState.actionBuffer.length > 10) {
+        gestureState.actionBuffer.shift();
+      }
+      
+      // If waiting, increment counter
+      if (gestureState.isWaiting) {
+        gestureState.actionCounter++;
+        updateWaitingDisplay();
+        
+        // Check if we've seen enough actions
+        if (gestureState.actionCounter >= gestureState.bufferSize) {
+          gestureState.isWaiting = false;
+          gestureState.actionCounter = 0;
+          document.getElementById('action-counter').style.display = 'none';
+          status.textContent = '✅ Ready for gestures!';
+          updateDebugInfo();
+        }
+      }
+    }
+
+    // Navigate images
+    function navigatePrevious() {
+      currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
+      updateImage();
+    }
+
+    function navigateNext() {
+      currentImageIndex = (currentImageIndex + 1) % images.length;
+      updateImage();
+    }
+
+    function updateImage() {
+      document.getElementById('current-image').src = images[currentImageIndex];
+    }
+
+    function toggleFullscreen() {
+      isFullscreen = !isFullscreen;
+      if (isFullscreen) {
+        document.documentElement.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    // Execute a gesture and start waiting period
+    function executeGesture(type, direction, hand) {
+      console.log(`🎯 Gesture: ${type} ${direction} (${hand} hand)`);
+      
+      // Start waiting period
+      gestureState.isWaiting = true;
+      gestureState.actionCounter = 0;
+      gestureState.lastGestureTime = Date.now();
+      gestureState.activeHand = hand;
+      
+      // Perform the actual action
+      switch(type) {
+        case 'swipe':
+          if (direction === 'left') {
+            navigatePrevious();
+            status.textContent = `⬅️ Previous image (${hand} hand)`;
+          } else {
+            navigateNext();
+            status.textContent = `➡️ Next image (${hand} hand)`;
+          }
+          break;
+        case 'palm':
+          toggleFullscreen();
+          status.textContent = isFullscreen ? 
+            `🖐️ Fullscreen ON (${hand} hand)` : 
+            `✊ Fullscreen OFF (${hand} hand)`;
+          break;
+      }
+      
+      // Show waiting indicator
+      showWaitingIndicator();
+      updateDebugInfo();
+    }
+
+    // Visual indicator for waiting period
+    function showWaitingIndicator() {
+      const indicator = document.getElementById('action-counter');
+      indicator.style.display = 'block';
+      updateWaitingDisplay();
+    }
+
+    // Update waiting display
+    function updateWaitingDisplay() {
+      const indicator = document.getElementById('action-counter');
+      if (indicator && gestureState.isWaiting) {
+        const remaining = gestureState.bufferSize - gestureState.actionCounter;
+        indicator.innerHTML = `
+          <div class="waiting-indicator">
+            <div class="action-dots">
+              ${Array(gestureState.bufferSize).fill(0).map((_, i) => 
+                `<div class="action-dot ${i < gestureState.actionCounter ? 'filled' : ''}"></div>`
+              ).join('')}
+            </div>
+            <div class="waiting-text">
+              ${remaining} more action${remaining !== 1 ? 's' : ''} before next gesture
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // Update debug information
+    function updateDebugInfo() {
+      document.getElementById('system-state').textContent = 
+        gestureState.isWaiting ? 'Waiting' : 'Ready';
+      document.getElementById('action-count').textContent = 
+        gestureState.actionCounter;
+      
+      // Update left hand info
+      document.getElementById('left-visible').textContent = 
+        handTracking.left.visible ? 'Yes' : 'No';
+      document.getElementById('left-fingers').textContent = 
+        handTracking.left.fingerCount;
+      document.getElementById('left-zone').textContent = 
+        handTracking.left.position && isInRestingZone('left', handTracking.left.position) ? 'Yes' : 'No';
+      document.getElementById('left-hand-state').className = 
+        handTracking.left.visible ? 'hand-state active' : 'hand-state';
+      
+      // Update right hand info
+      document.getElementById('right-visible').textContent = 
+        handTracking.right.visible ? 'Yes' : 'No';
+      document.getElementById('right-fingers').textContent = 
+        handTracking.right.fingerCount;
+      document.getElementById('right-zone').textContent = 
+        handTracking.right.position && isInRestingZone('right', handTracking.right.position) ? 'Yes' : 'No';
+      document.getElementById('right-hand-state').className = 
+        handTracking.right.visible ? 'hand-state active' : 'hand-state';
+    }
+
+    // Process hand detection results
+    hands.onResults((results) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Mark all hands as not visible initially
+      handTracking.left.visible = false;
+      handTracking.right.visible = false;
+      
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        results.multiHandLandmarks.forEach((landmarks, index) => {
+          // Determine which hand this is
+          const handSide = detectHandSide(landmarks[9].x);
+          const currentHand = handTracking[handSide];
+          
+          // Update position
+          currentHand.lastPosition = currentHand.position;
+          currentHand.position = {
+            x: landmarks[9].x,
+            y: landmarks[9].y
+          };
+          
+          // Update history
+          currentHand.history.push({...currentHand.position, time: Date.now()});
+          if (currentHand.history.length > 30) currentHand.history.shift();
+          
+          // Detect hand appearance
+          if (!currentHand.visible) {
+            currentHand.visible = true;
+            recordAction(ActionType.HAND_APPEAR, handSide);
+          }
+          
+          // Detect movement actions
+          if (currentHand.lastPosition) {
+            const deltaX = currentHand.position.x - currentHand.lastPosition.x;
+            const deltaY = currentHand.position.y - currentHand.lastPosition.y;
+            const moveThreshold = 0.02; // 2% of screen
+            
+            if (Math.abs(deltaX) > moveThreshold) {
+              recordAction(deltaX > 0 ? ActionType.MOVE_RIGHT : ActionType.MOVE_LEFT, handSide);
+            }
+            if (Math.abs(deltaY) > moveThreshold) {
+              recordAction(deltaY > 0 ? ActionType.MOVE_DOWN : ActionType.MOVE_UP, handSide);
+            }
+          }
+          
+          // Count fingers
+          const fingerCount = countFingers(landmarks);
+          if (fingerCount !== currentHand.fingerCount) {
+            if (fingerCount > currentHand.fingerCount) {
+              recordAction(ActionType.HAND_OPEN, handSide);
+            } else {
+              recordAction(ActionType.HAND_CLOSE, handSide);
+            }
+            currentHand.fingerCount = fingerCount;
+          }
+          
+          // Check if we can process gestures
+          if (!gestureState.isWaiting) {
+            // Detect swipe gesture
+            // Note: Swipes follow hand movement direction, not zone position
+            // Right hand swiping left (even from left side of screen) = previous image
+            if (currentHand.history.length > 5) {
+              const recent = currentHand.history.slice(-10);
+              const startX = recent[0].x;
+              const endX = recent[recent.length - 1].x;
+              const swipeDistance = endX - startX;
+              const swipeThreshold = 0.15; // 15% of screen width
+              
+              if (Math.abs(swipeDistance) > swipeThreshold) {
+                const direction = swipeDistance > 0 ? 'right' : 'left';
+                executeGesture('swipe', direction, handSide);
+                currentHand.history = []; // Clear history after gesture
+              }
+            }
+            
+            // Detect palm gesture (5 fingers in correct resting zone)
+            // Right hand must be in right zone, left hand must be in left zone
+            if (fingerCount === 5 && isInRestingZone(handSide, currentHand.position)) {
+              if (!currentHand.palmGestureTriggered) {
+                executeGesture('palm', 'open', handSide);
+                currentHand.palmGestureTriggered = true;
+              }
+            } else {
+              currentHand.palmGestureTriggered = false;
+            }
+          }
+          
+          // Draw hand landmarks
+          drawHand(landmarks, handSide);
+          
+          // Show which hand is in which zone
+          updateZoneIndicators(handSide, currentHand.position);
+        });
+        
+        // Detect hand disappearance
+        if (!handTracking.left.visible && handTracking.left.lastPosition) {
+          recordAction(ActionType.HAND_DISAPPEAR, 'left');
+        }
+        if (!handTracking.right.visible && handTracking.right.lastPosition) {
+          recordAction(ActionType.HAND_DISAPPEAR, 'right');
+        }
+      }
+      
+      updateDebugInfo();
+    });
+
+    // Update zone indicators
+    function updateZoneIndicators(handSide, position) {
+      const leftZone = document.querySelector('.hand-zone-left');
+      const rightZone = document.querySelector('.hand-zone-right');
+      
+      // Clear existing indicators
+      const existingIndicators = document.querySelectorAll('.zone-hand-indicator');
+      existingIndicators.forEach(el => el.remove());
+      
+      // Remove active classes
+      leftZone.classList.remove('active');
+      rightZone.classList.remove('active');
+      
+      if (position) {
+        if (handSide === 'left' && isInRestingZone('left', position)) {
+          const indicator = document.createElement('div');
+          indicator.className = 'zone-hand-indicator';
+          indicator.innerHTML = '👋 Left hand<br>(Blue)';
+          leftZone.appendChild(indicator);
+          leftZone.classList.add('active');
+        } else if (handSide === 'right' && isInRestingZone('right', position)) {
+          const indicator = document.createElement('div');
+          indicator.className = 'zone-hand-indicator';
+          indicator.innerHTML = '👋 Right hand<br>(Pink)';
+          rightZone.appendChild(indicator);
+          rightZone.classList.add('active');
+        }
+      }
+    }
+    
+    // Draw hand visualization
+    function drawHand(landmarks, handSide) {
+      // Use consistent colors: blue for left hand, pink for right hand
+      const color = handSide === 'left' ? 'rgba(74, 158, 255, 0.8)' : 'rgba(255, 74, 158, 0.8)';
+      
+      // Draw connections
+      const connections = [
+        [0, 1], [1, 2], [2, 3], [3, 4],
+        [0, 5], [5, 6], [6, 7], [7, 8],
+        [5, 9], [9, 10], [10, 11], [11, 12],
+        [9, 13], [13, 14], [14, 15], [15, 16],
+        [13, 17], [17, 18], [18, 19], [19, 20],
+        [0, 17]
+      ];
+      
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      
+      connections.forEach(([start, end]) => {
+        ctx.beginPath();
+        ctx.moveTo(landmarks[start].x * canvas.width, landmarks[start].y * canvas.height);
+        ctx.lineTo(landmarks[end].x * canvas.width, landmarks[end].y * canvas.height);
+        ctx.stroke();
+      });
+      
+      // Draw joints
+      ctx.fillStyle = color;
+      landmarks.forEach(point => {
+        ctx.beginPath();
+        ctx.arc(point.x * canvas.width, point.y * canvas.height, 5, 0, 2 * Math.PI);
+        ctx.fill();
+      });
+      
+      // Draw palm center
+      const palmCenter = landmarks[9];
+      ctx.fillStyle = gestureState.isWaiting ? 'rgba(255, 165, 0, 0.8)' : color;
+      ctx.beginPath();
+      ctx.arc(palmCenter.x * canvas.width, palmCenter.y * canvas.height, 10, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+
+    // Start camera
+    const camera = new Camera(video, {
+      onFrame: async () => {
+        await hands.send({image: video});
+      },
+      width: 640,
+      height: 480
+    });
+    
+    // Initialize
+    updateImage();
+    camera.start();
+    
+    // Show instructions
+    status.textContent = '✋ Right hand → Right zone | Left hand → Left zone';
+  </script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+# ENHANCED SIDE-HANDED SWIPE DETECTION
+
+## Overview
+The new `side-swipe-enhanced.html` file includes sophisticated side-handed swipe detection with visual feedback and improved accuracy.
+
+## Key Features
+
+### 1. **Multi-Point Tracking**
+- Uses 3 hand landmarks for stable tracking:
+  - Wrist (landmark 0)
+  - Middle finger MCP (landmark 9)
+  - Index fingertip (landmark 8)
+- Averages positions for smoother motion detection
+
+### 2. **Velocity-Based Detection**
+- Calculates swipe velocity in pixels per second
+- Detects fast swipes even with smaller movements
+- Shows real-time velocity indicator (top right)
+
+### 3. **Visual Feedback**
+- **Swipe Trail**: Colored trail follows hand movement
+  - Green trail for right swipes
+  - Pink trail for left swipes
+- **Progress Bar**: Shows swipe completion percentage
+- **Velocity Meter**: Real-time speed indicator
+- **Status Updates**: Shows swipe direction and confidence
+
+### 4. **Enhanced Thresholds**
+- Lower movement threshold (0.15 vs 0.2) for easier swipes
+- Velocity threshold (0.3) for quick gestures
+- Combined detection: triggers on distance OR velocity
+
+### 5. **Swipe States**
+```javascript
+swipeState = {
+  history: [],        // Position history
+  velocity: 0,        // Current velocity
+  direction: null,    // 'left' or 'right'
+  progress: 0,        // 0-1 completion
+  isActive: false,    // Currently swiping
+  startTime: 0,       // Swipe start time
+  trail: []          // Visual trail points
+}
+```
+
+## How It Works
+
+1. **Side View Detection**: First ensures hand is in profile/side view
+2. **Motion Tracking**: Tracks multiple points over time
+3. **Velocity Calculation**: Measures speed of movement
+4. **Threshold Check**: Triggers on distance OR velocity
+5. **Visual Feedback**: Shows trail, progress, and status
+6. **Navigation**: Executes image navigation on successful swipe
+
+## Visual Indicators
+
+- **Debug Info**: Shows fingers, swipe direction, velocity, and mode
+- **Trail Visualization**: Colored line following hand movement
+- **Progress Indicator**: Bar showing swipe completion
+- **Velocity Meter**: Speed indicator (only visible in side view)
+- **Status Messages**: Real-time feedback on swipe state
+
+## Usage Tips
+
+1. **Turn hand sideways** - Ensure "Side View Facing" mode
+2. **Swipe horizontally** - Move hand left or right
+3. **Quick swipes work** - Fast movements trigger even with small distance
+4. **Watch the trail** - Visual feedback shows your movement
+5. **Check velocity meter** - Shows how fast you're moving
+
+## Improvements Over Original
+
+- ✅ More reliable detection in side view
+- ✅ Visual feedback during swipe
+- ✅ Velocity-based triggering
+- ✅ Progress indicators
+- ✅ Multi-point tracking for stability
+- ✅ Lower thresholds for easier swipes
+- ✅ Real-time debugging information
+
+The enhanced system makes side-handed swipes much more natural and responsive!

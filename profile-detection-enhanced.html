@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enhanced Profile Detection Test</title>
+  <style>
+    body { 
+      margin: 0; 
+      overflow: hidden; 
+      font-family: -apple-system, sans-serif; 
+      background: #0a0a0a; 
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    
+    #main-display {
+      font-size: 8em;
+      margin-bottom: 30px;
+      transition: all 0.3s ease;
+    }
+    
+    #orientation-text {
+      font-size: 3em;
+      margin-bottom: 20px;
+      transition: all 0.3s ease;
+    }
+    
+    .palm-mode {
+      color: #44ff44;
+      text-shadow: 0 0 30px rgba(68, 255, 68, 0.8);
+    }
+    
+    .profile-mode {
+      color: #4a9eff;
+      text-shadow: 0 0 30px rgba(74, 158, 255, 0.8);
+    }
+    
+    .transition-mode {
+      color: #ffaa44;
+      text-shadow: 0 0 30px rgba(255, 170, 68, 0.8);
+    }
+    
+    #depth-metrics {
+      background: rgba(20, 20, 20, 0.9);
+      padding: 30px;
+      border-radius: 20px;
+      font-family: monospace;
+      font-size: 18px;
+      line-height: 1.8;
+      min-width: 500px;
+    }
+    
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      margin: 10px 0;
+    }
+    
+    .metric-bar {
+      width: 200px;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 5px;
+      overflow: hidden;
+      margin-left: 20px;
+    }
+    
+    .metric-fill {
+      height: 100%;
+      background: #4a9eff;
+      transition: width 0.3s ease;
+    }
+    
+    .section-header {
+      font-weight: bold;
+      color: #4a9eff;
+      margin-top: 20px;
+      margin-bottom: 10px;
+    }
+    
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      opacity: 0.3;
+    }
+    
+    #instructions {
+      position: fixed;
+      bottom: 30px;
+      text-align: center;
+      opacity: 0.7;
+      font-size: 1.2em;
+    }
+  </style>
+</head>
+<body>
+  <video id="video" autoplay playsinline style="display:none;"></video>
+  <canvas id="canvas"></canvas>
+  
+  <div id="main-display">🤚</div>
+  <div id="orientation-text">Waiting for hand...</div>
+  
+  <div id="depth-metrics">
+    <div class="section-header">Basic Metrics</div>
+    <div class="metric">
+      <span>Aspect Ratio:</span>
+      <span id="aspect-value">0.00</span>
+      <div class="metric-bar">
+        <div class="metric-fill" id="aspect-bar"></div>
+      </div>
+    </div>
+    <div class="metric">
+      <span>Knuckle Spacing:</span>
+      <span id="knuckle-value">0.00</span>
+      <div class="metric-bar">
+        <div class="metric-fill" id="knuckle-bar"></div>
+      </div>
+    </div>
+    
+    <div class="section-header">Enhanced Profile Detection</div>
+    <div class="metric">
+      <span>Finger Overlap:</span>
+      <span id="overlap-value">0.00</span>
+      <div class="metric-bar">
+        <div class="metric-fill" id="overlap-bar" style="background: #ff4444;"></div>
+      </div>
+    </div>
+    <div class="metric">
+      <span>Thumb Hidden:</span>
+      <span id="thumb-hidden-value">No</span>
+      <div class="metric-bar">
+        <div class="metric-fill" id="thumb-hidden-bar" style="background: #ff4444;"></div>
+      </div>
+    </div>
+    <div class="metric">
+      <span>Finger Spread:</span>
+      <span id="spread-value">0.00</span>
+      <div class="metric-bar">
+        <div class="metric-fill" id="spread-bar"></div>
+      </div>
+    </div>
+    
+    <div class="section-header">Final Scores</div>
+    <div class="metric">
+      <span>Profile Score:</span>
+      <span id="profile-score-value">0.00</span>
+      <div class="metric-bar">
+        <div class="metric-fill" id="profile-score-bar" style="background: #4a9eff;"></div>
+      </div>
+    </div>
+    <div class="metric">
+      <span>Palm Score:</span>
+      <span id="palm-score-value">0.00</span>
+      <div class="metric-bar">
+        <div class="metric-fill" id="palm-score-bar" style="background: #44ff44;"></div>
+      </div>
+    </div>
+    <div class="metric">
+      <span>Overall Score:</span>
+      <span id="score-value">0</span>
+      <div class="metric-bar">
+        <div class="metric-fill" id="score-bar" style="background: linear-gradient(to right, #4a9eff, #ffaa44, #44ff44);"></div>
+      </div>
+    </div>
+  </div>
+  
+  <div id="instructions">
+    Show your palm to the camera | Turn hand sideways | Watch the enhanced metrics change
+  </div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  
+  <script>
+    const mainDisplay = document.getElementById('main-display');
+    const orientationText = document.getElementById('orientation-text');
+    
+    // Enhanced hand Z-depth orientation detection
+    function detectHandOrientation(landmarks) {
+      // Calculate hand width (x-spread)
+      const xCoords = landmarks.map(p => p.x);
+      const handWidth = Math.max(...xCoords) - Math.min(...xCoords);
+      
+      // Calculate hand height (y-spread)
+      const yCoords = landmarks.map(p => p.y);
+      const handHeight = Math.max(...yCoords) - Math.min(...yCoords);
+      
+      // Get key landmarks for depth analysis
+      const wrist = landmarks[0];
+      const indexMcp = landmarks[5];
+      const middleMcp = landmarks[9];
+      const ringMcp = landmarks[13];
+      const pinkyMcp = landmarks[17];
+      
+      // Enhanced metrics for profile detection
+      
+      // 1. Finger overlap detection (fingers appear closer in profile)
+      const fingerTips = [
+        landmarks[8],  // Index
+        landmarks[12], // Middle
+        landmarks[16], // Ring
+        landmarks[20]  // Pinky
+      ];
+      
+      let overlapScore = 0;
+      for (let i = 0; i < fingerTips.length - 1; i++) {
+        const xDiff = Math.abs(fingerTips[i].x - fingerTips[i + 1].x);
+        if (xDiff < 0.03) overlapScore += 0.25; // Fingers very close together
+      }
+      
+      // 2. Thumb visibility and position
+      const thumbTip = landmarks[4];
+      const thumbBase = landmarks[2];
+      const indexBase = landmarks[5];
+      
+      // Check if thumb is hidden behind hand (similar x-coords to fingers)
+      const thumbHidden = Math.abs(thumbTip.x - indexBase.x) < 0.05;
+      
+      // 3. Calculate average knuckle spacing (smaller in profile)
+      const knuckleSpacing = [
+        Math.abs(middleMcp.x - indexMcp.x),
+        Math.abs(ringMcp.x - middleMcp.x),
+        Math.abs(pinkyMcp.x - ringMcp.x)
+      ].reduce((a, b) => a + b) / 3;
+      
+      // 4. Hand compactness (profile hands are more compact)
+      const fingerSpread = Math.abs(landmarks[8].x - landmarks[20].x); // Index to pinky spread
+      
+      // Calculate individual scores
+      const aspectRatio = handWidth / handHeight;
+      const normalizedKnuckleSpacing = knuckleSpacing / handWidth;
+      const normalizedFingerSpread = fingerSpread / handWidth;
+      
+      // Profile indicators (higher = more profile-like)
+      const profileScore = 
+        overlapScore * 0.3 +                           // Finger overlap
+        (thumbHidden ? 0.2 : 0) +                      // Thumb hidden
+        (1 - normalizedKnuckleSpacing) * 0.2 +        // Tight knuckles
+        (1 - normalizedFingerSpread) * 0.2 +          // Narrow spread
+        (aspectRatio < 0.8 ? 0.1 : 0);                // Narrow aspect
+      
+      // Palm indicators (higher = more palm-like)
+      const palmIndicators = 
+        (aspectRatio > 1.0 ? 0.3 : 0) +               // Wide aspect
+        (normalizedKnuckleSpacing > 0.3 ? 0.3 : 0) +  // Wide knuckles
+        (normalizedFingerSpread > 0.5 ? 0.2 : 0) +    // Wide spread
+        (!thumbHidden ? 0.2 : 0);                     // Thumb visible
+      
+      // Combined score (0-100, where low = profile, high = palm)
+      const depthScore = Math.max(0, Math.min(100, 
+        50 + (palmIndicators * 50) - (profileScore * 50)
+      ));
+      
+      // Update metric displays
+      document.getElementById('aspect-value').textContent = aspectRatio.toFixed(2);
+      document.getElementById('aspect-bar').style.width = `${Math.min(aspectRatio * 50, 100)}%`;
+      
+      document.getElementById('knuckle-value').textContent = normalizedKnuckleSpacing.toFixed(2);
+      document.getElementById('knuckle-bar').style.width = `${Math.min(normalizedKnuckleSpacing * 200, 100)}%`;
+      
+      document.getElementById('overlap-value').textContent = overlapScore.toFixed(2);
+      document.getElementById('overlap-bar').style.width = `${overlapScore * 100}%`;
+      
+      document.getElementById('thumb-hidden-value').textContent = thumbHidden ? 'Yes' : 'No';
+      document.getElementById('thumb-hidden-bar').style.width = thumbHidden ? '100%' : '0%';
+      
+      document.getElementById('spread-value').textContent = normalizedFingerSpread.toFixed(2);
+      document.getElementById('spread-bar').style.width = `${Math.min(normalizedFingerSpread * 100, 100)}%`;
+      
+      document.getElementById('profile-score-value').textContent = profileScore.toFixed(2);
+      document.getElementById('profile-score-bar').style.width = `${profileScore * 100}%`;
+      
+      document.getElementById('palm-score-value').textContent = palmIndicators.toFixed(2);
+      document.getElementById('palm-score-bar').style.width = `${palmIndicators * 100}%`;
+      
+      document.getElementById('score-value').textContent = Math.round(depthScore);
+      document.getElementById('score-bar').style.width = `${depthScore}%`;
+      
+      // Adjusted thresholds for better profile detection
+      if (depthScore > 55) {
+        return { orientation: 'palm', score: depthScore };
+      } else if (depthScore < 45) {
+        return { orientation: 'profile', score: depthScore };
+      } else {
+        return { orientation: 'transition', score: depthScore };
+      }
+    }
+    
+    function updateCanvas(results) {
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const hand = results.multiHandLandmarks[0];
+        const result = detectHandOrientation(hand);
+        
+        // Update display based on orientation
+        const displays = {
+          'palm': { icon: '✋', text: 'Palm Facing', class: 'palm-mode' },
+          'profile': { icon: '👉', text: 'Side View Facing', class: 'profile-mode' },
+          'transition': { icon: '🤚', text: 'Transitioning', class: 'transition-mode' }
+        };
+        
+        const display = displays[result.orientation];
+        mainDisplay.textContent = display.icon;
+        mainDisplay.className = display.class;
+        orientationText.textContent = `${display.text} (${Math.round(result.score)}%)`;
+        orientationText.className = display.class;
+        
+        // Draw hand skeleton
+        ctx.strokeStyle = display.class === 'palm-mode' ? '#44ff44' : 
+                         display.class === 'profile-mode' ? '#4a9eff' : '#ffaa44';
+        ctx.lineWidth = 2;
+        
+        // Draw connections
+        const connections = [
+          [0, 1], [1, 2], [2, 3], [3, 4],
+          [0, 5], [5, 6], [6, 7], [7, 8],
+          [5, 9], [9, 10], [10, 11], [11, 12],
+          [9, 13], [13, 14], [14, 15], [15, 16],
+          [13, 17], [17, 18], [18, 19], [19, 20]
+        ];
+        
+        ctx.beginPath();
+        connections.forEach(([start, end]) => {
+          const p1 = hand[start];
+          const p2 = hand[end];
+          ctx.moveTo((1 - p1.x) * canvas.width, p1.y * canvas.height);
+          ctx.lineTo((1 - p2.x) * canvas.width, p2.y * canvas.height);
+        });
+        ctx.stroke();
+        
+      } else {
+        mainDisplay.textContent = '🤚';
+        mainDisplay.className = '';
+        orientationText.textContent = 'Waiting for hand...';
+        orientationText.className = '';
+        
+        // Reset metrics
+        const metrics = ['aspect', 'knuckle', 'overlap', 'thumb-hidden', 'spread', 'profile-score', 'palm-score', 'score'];
+        metrics.forEach(metric => {
+          if (metric === 'thumb-hidden') {
+            document.getElementById(`${metric}-value`).textContent = 'No';
+          } else {
+            document.getElementById(`${metric}-value`).textContent = '0.00';
+          }
+          document.getElementById(`${metric}-bar`).style.width = '0%';
+        });
+      }
+    }
+    
+    // Initialize MediaPipe
+    const hands = new Hands({ 
+      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` 
+    });
+    
+    hands.setOptions({ 
+      maxNumHands: 1, 
+      modelComplexity: 1, 
+      minDetectionConfidence: 0.7, 
+      minTrackingConfidence: 0.5 
+    });
+    
+    hands.onResults(updateCanvas);
+    
+    const video = document.getElementById('video');
+    const camera = new Camera(video, {
+      onFrame: async () => await hands.send({ image: video }),
+      width: 640,
+      height: 480
+    });
+    
+    // Start
+    camera.start();
+  </script>
+</body>
+</html>

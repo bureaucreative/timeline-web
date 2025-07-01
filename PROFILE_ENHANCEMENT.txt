@@ -1,0 +1,44 @@
+# ENHANCED PROFILE DETECTION UPDATE
+
+## What Changed
+I've created an improved profile detection algorithm that better recognizes when your hand is turned sideways. The enhanced version is available in: `profile-detection-enhanced.html`
+
+## New Detection Metrics
+
+### 1. **Finger Overlap Detection** (30% weight)
+- Detects when fingers appear close together (common in profile view)
+- Scores higher when fingertips have X-coordinate differences < 0.03
+
+### 2. **Thumb Visibility** (20% weight)
+- Checks if thumb is hidden behind the hand
+- Profile hands often have the thumb overlapping with other fingers
+
+### 3. **Hand Compactness** (20% weight)
+- Measures the spread from index to pinky finger
+- Profile hands appear more compact/narrow
+
+### 4. **Knuckle Spacing** (20% weight)
+- Profile hands have tighter knuckle spacing
+- Inverted scoring (smaller spacing = more profile-like)
+
+### 5. **Aspect Ratio** (10% weight)
+- Profile hands are taller than wide (aspect ratio < 0.8)
+
+## Improved Thresholds
+- **Palm Mode**: Score > 55 (was 60)
+- **Profile Mode**: Score < 45 (was 40)
+- **Transition**: Score 45-55
+
+## Testing the Enhancement
+1. Open `profile-detection-enhanced.html`
+2. Watch the detailed metrics as you rotate your hand
+3. Notice how multiple indicators work together for better detection
+
+## Benefits
+- More reliable profile detection
+- Less false positives
+- Smoother transitions
+- Better swipe gesture recognition
+
+## Quick Fix for Original Files
+To apply the enhanced detection to the original gesture-zdepth.html, you would need to replace the detectHandOrientation function with the enhanced version from profile-detection-enhanced.html.

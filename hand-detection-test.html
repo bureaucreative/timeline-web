@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hand Detection Test - Which Hand is Which?</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    
+    #info {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      font-size: 48px;
+      z-index: 100;
+    }
+    
+    .hand-label {
+      padding: 20px;
+      margin: 20px;
+      border-radius: 20px;
+      font-weight: bold;
+    }
+    
+    .left-hand {
+      background: rgba(74, 158, 255, 0.8);
+    }
+    
+    .right-hand {
+      background: rgba(255, 74, 158, 0.8);
+    }
+    
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+    }
+    
+    #instruction {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 20px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <video id="video" autoplay playsinline style="display:none;"></video>
+  <canvas id="canvas"></canvas>
+  
+  <div id="info">
+    <div id="hand-display">Show your hands!</div>
+  </div>
+  
+  <div id="instruction">
+    Raise one hand at a time to see which is which<br>
+    Blue = Left Hand | Pink = Right Hand
+  </div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script>
+    const MIRROR_MODE = true; // Camera shows mirrored view
+    
+    // Initialize MediaPipe Hands
+    const hands = new Hands({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    });
+    
+    hands.setOptions({
+      maxNumHands: 2,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const handDisplay = document.getElementById('hand-display');
+
+    // Set canvas size
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Detect which hand based on position
+    function detectHandSide(x) {
+      if (MIRROR_MODE) {
+        // Camera is mirrored, so right hand appears on left side
+        return x < 0.5 ? 'right' : 'left';
+      } else {
+        return x < 0.5 ? 'left' : 'right';
+      }
+    }
+
+    hands.onResults((results) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      let detectedHands = [];
+      
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        results.multiHandLandmarks.forEach((landmarks, index) => {
+          const handSide = detectHandSide(landmarks[9].x);
+          detectedHands.push(handSide);
+          
+          // Draw hand
+          const color = handSide === 'left' ? 
+            'rgba(74, 158, 255, 0.8)' : 'rgba(255, 74, 158, 0.8)';
+          
+          // Draw connections
+          const connections = [
+            [0, 1], [1, 2], [2, 3], [3, 4],
+            [0, 5], [5, 6], [6, 7], [7, 8],
+            [5, 9], [9, 10], [10, 11], [11, 12],
+            [9, 13], [13, 14], [14, 15], [15, 16],
+            [13, 17], [17, 18], [18, 19], [19, 20],
+            [0, 17]
+          ];
+          
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 3;
+          
+          connections.forEach(([start, end]) => {
+            ctx.beginPath();
+            ctx.moveTo(landmarks[start].x * canvas.width, landmarks[start].y * canvas.height);
+            ctx.lineTo(landmarks[end].x * canvas.width, landmarks[end].y * canvas.height);
+            ctx.stroke();
+          });
+          
+          // Draw joints
+          ctx.fillStyle = color;
+          landmarks.forEach(point => {
+            ctx.beginPath();
+            ctx.arc(point.x * canvas.width, point.y * canvas.height, 8, 0, 2 * Math.PI);
+            ctx.fill();
+          });
+          
+          // Draw palm center with label
+          const palmCenter = landmarks[9];
+          const x = palmCenter.x * canvas.width;
+          const y = palmCenter.y * canvas.height;
+          
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(x, y, 15, 0, 2 * Math.PI);
+          ctx.fill();
+          
+          // Add text label
+          ctx.fillStyle = 'white';
+          ctx.font = 'bold 24px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText(handSide.toUpperCase(), x, y - 30);
+        });
+        
+        // Update display
+        if (detectedHands.length === 1) {
+          const hand = detectedHands[0];
+          const colorClass = hand === 'left' ? 'left-hand' : 'right-hand';
+          handDisplay.innerHTML = `
+            <div class="hand-label ${colorClass}">
+              ${hand === 'left' ? '👈 LEFT HAND' : 'RIGHT HAND 👉'}
+            </div>
+          `;
+        } else if (detectedHands.length === 2) {
+          handDisplay.innerHTML = `
+            <div class="hand-label left-hand">👈 LEFT</div>
+            <div class="hand-label right-hand">RIGHT 👉</div>
+          `;
+        }
+      } else {
+        handDisplay.innerHTML = 'Show your hands!';
+      }
+    });
+
+    // Start camera
+    const camera = new Camera(video, {
+      onFrame: async () => {
+        await hands.send({image: video});
+      },
+      width: 640,
+      height: 480
+    });
+    
+    camera.start();
+  </script>
+</body>
+</html>

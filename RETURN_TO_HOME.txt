@@ -1,0 +1,216 @@
+# RETURN TO HOME GESTURE SYSTEM
+
+## Overview
+A gesture recognition system that requires hands to return to their initial "home" position after each gesture. This creates a natural, deliberate gesture flow where each action has a clear beginning and end. The display is mirrored so your right hand appears on the right side of the screen.
+
+## Features
+1. **Swipe Navigation** - Move hand left/right from home position
+2. **Return to Home** - Must return to home circle before next swipe
+3. **Palm Zoom** - Show palm (5 fingers) to zoom image to fit screen
+4. **Fist to Restore** - Close hand to return image to normal size
+
+## Display Mirroring
+- **Right hand** appears on the **right side** of screen
+- **Left hand** appears on the **left side** of screen
+- This matches your natural perspective (like looking at your hands, not in a mirror)
+
+## How It Works
+
+### 1. Home Position Setup
+- When you first show your hand, it sets a "home position" after 0.5 seconds
+- A 200px circle appears marking this home location
+- Each hand has its own home position
+
+### 2. Swipe Navigation
+- Swipe left/right by moving hand away from home (>15% screen width)
+- System detects gesture and navigates images
+- Hand turns red during gesture
+
+### 3. Return to Home
+- After gesture, hand turns orange
+- Home circle pulses orange
+- Must return hand to home circle before next gesture
+- Circle turns green when hand is home and ready
+
+### 4. Palm Zoom Gestures (NEW!)
+- **Zoom In**: Show open palm with 5 fingers
+  - Palm score must be >65% (facing camera)
+  - Hold for 0.5 seconds (see progress %)
+  - Image expands to fit screen
+- **Zoom Out**: Close hand (make fist)
+  - 0-1 fingers detected
+  - Image returns to 80% size instantly
+- Works independently of swipe gestures
+- Visual feedback shows palm detection
+
+## Visual States
+
+### Hand Colors
+- **Blue/Pink** (normal) - Ready for gesture
+- **Red** - Performing swipe gesture
+- **Orange** - Waiting to return home
+- **Green circle on palm** - Palm detected (zoom ready)
+
+### Home Circle States
+- **White dashed** - Default home position
+- **Green glow** - Hand is home and ready
+- **Orange pulse** - Waiting for return
+
+### Status Display
+```
+READY              → Ready for gesture
+GESTURE DETECTED   → Performing action
+WAITING           → Return to home position
+Hold palm...      → Palm gesture progress
+```
+
+### Zoom Indicator
+- **🔍 ZOOMED** badge appears when image is zoomed
+- Green border indicates active zoom state
+
+## Configuration
+
+```javascript
+HOME_THRESHOLD = 0.08    // 8% of screen = "at home" (faster detection)
+SWIPE_THRESHOLD = 0.15   // 15% movement triggers swipe
+HOME_SET_DELAY = 500     // 0.5 seconds to set home (faster setup)
+HOME_CIRCLE_SIZE = 200px // Large visual target (2x original)
+
+// Palm gesture settings
+PALM_SCORE_THRESHOLD = 65  // 65% palm score required
+PALM_HOLD_THRESHOLD = 15   // ~0.5 seconds hold time
+```
+
+## Visual Improvements
+
+### Larger Home Circle
+- **200px diameter** (doubled from 100px)
+- **Center dot** for precise targeting
+- **Glow effect** when waiting or ready
+- **Clear visual target** easy to see and reach
+
+### Faster Detection
+- **8% threshold** (up from 5%) = larger detection area
+- **0.5s setup time** (down from 1s) = quicker to start
+- **"CLOSE!" indicator** when approaching home
+- **Arrow pointer** showing direction to home
+
+### Enhanced Feedback
+- **Distance bar** turns green when close to home
+- **Pulsing orange** circle when waiting
+- **Bright green** circle when ready
+- **Line and arrow** guide you back to home
+
+## State Machine
+
+```
+READY → GESTURE_ACTIVE → WAITING_FOR_HOME → READY
+  ↑                                           ↓
+  └───────────── Hand at home ────────────────┘
+```
+
+## Why This Approach?
+
+### Natural Flow
+1. **Start** - Hand at rest (home)
+2. **Action** - Deliberate movement away
+3. **Return** - Natural return to rest
+4. **Ready** - Clear visual confirmation
+
+### Benefits
+- **Prevents accidental gestures** - Must start from home
+- **Natural rhythm** - Matches how we naturally move
+- **Clear feedback** - Always know system state
+- **No time pressure** - Return at your own pace
+
+## Usage Instructions
+
+1. **Show hand** → Wait 0.5 seconds for home to set
+2. **See white circle** → Your home position is marked
+3. **Swipe from home** → Navigate images (>15% screen width)
+4. **See orange circle** → Return hand there
+5. **Watch for "CLOSE!"** → You're almost home
+6. **See green circle** → Ready for next gesture
+
+## Visual Indicators
+- **Distance bar** in debug panel shows how far from home
+- **Arrow pointer** guides you back when waiting
+- **Glow effects** indicate current state
+- **Center dot** shows exact home center
+
+## Debug Information
+
+The debug panel shows:
+- Hand visibility
+- Home position status
+- Distance from home (with progress bar)
+- Current state
+
+## Comparison with Other Systems
+
+### vs. 3-Action Buffer
+- **This**: Wait for spatial return (position-based)
+- **Buffer**: Wait for N actions (count-based)
+
+### vs. Time Cooldown
+- **This**: User controls timing by returning home
+- **Cooldown**: Fixed waiting period
+
+### vs. Dynamic Zones
+- **This**: Fixed home positions
+- **Zones**: Moving gesture areas
+
+## Best Practices
+
+1. **Set home comfortably** - Choose a natural resting position
+2. **Make deliberate gestures** - Clear movements from home
+3. **Return naturally** - No need to rush back
+4. **Watch the colors** - Visual feedback guides you
+
+## Troubleshooting
+
+### Home Position Issues
+- Keep hand steady for 0.5 seconds to set home
+- If home is in wrong place, hide and show hand again
+- Good lighting helps with stable detection
+
+### Detection Too Slow?
+The system now has:
+- **8% detection threshold** (60% larger than original)
+- **200px visual circles** (2x larger than original)
+- **0.5s setup time** (2x faster than original)
+- **"CLOSE!" indicator** when approaching home
+- **Arrow guides** pointing back to home
+
+### Gesture Not Detected
+- Ensure you start from home position
+- Move far enough (>15% screen width)
+- Check that state is "READY" before swiping
+
+### Can't Return Home
+- Look for orange pulsing circle
+- Move hand to center of circle
+- Distance bar shows how close you are
+
+## When to Use This System
+
+### Good For:
+- **Presentations** - Clear, deliberate control
+- **Accessibility** - Predictable interaction pattern
+- **Precision** - Prevents accidental inputs
+- **Teaching** - Easy to understand flow
+
+### Consider Alternatives For:
+- Rapid navigation needs
+- Continuous gestures
+- Multi-hand simultaneous control
+
+## Files Created
+- `return-to-home.html` - Complete implementation
+- `RETURN_TO_HOME.txt` - This documentation
+
+## Browser Requirements
+- Modern browser with WebRTC support
+- Camera/webcam access
+- JavaScript enabled
+- MediaPipe Hands library (loaded from CDN)

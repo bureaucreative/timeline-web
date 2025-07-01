@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home Detection Test - Circle Size</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    
+    .test-area {
+      position: relative;
+      width: 80%;
+      height: 80%;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+    }
+    
+    .home-test {
+      position: absolute;
+      width: 200px;
+      height: 200px;
+      border: 3px dashed rgba(255, 255, 255, 0.5);
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    }
+    
+    .detection-zone {
+      position: absolute;
+      border: 2px solid rgba(68, 255, 68, 0.5);
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    
+    .threshold-8 {
+      /* 8% of viewport width as diameter */
+      width: 16vw;
+      height: 16vw;
+      background: rgba(68, 255, 68, 0.1);
+    }
+    
+    .threshold-5 {
+      /* 5% of viewport width as diameter (old threshold) */
+      width: 10vw;
+      height: 10vw;
+      background: rgba(255, 68, 68, 0.1);
+      border-color: rgba(255, 68, 68, 0.5);
+    }
+    
+    .center-dot {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    
+    .info {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(20, 20, 20, 0.9);
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 400px;
+    }
+    
+    .legend {
+      margin-top: 20px;
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin: 10px 0;
+    }
+    
+    .legend-color {
+      width: 30px;
+      height: 30px;
+      margin-right: 10px;
+      border-radius: 50%;
+      border: 2px solid;
+    }
+    
+    .home-circle {
+      border-color: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .new-threshold {
+      border-color: rgba(68, 255, 68, 0.5);
+      background: rgba(68, 255, 68, 0.2);
+    }
+    
+    .old-threshold {
+      border-color: rgba(255, 68, 68, 0.5);
+      background: rgba(255, 68, 68, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <div class="test-area">
+    <div class="detection-zone threshold-8"></div>
+    <div class="detection-zone threshold-5"></div>
+    <div class="home-test">
+      <div class="center-dot"></div>
+    </div>
+  </div>
+  
+  <div class="info">
+    <h2>Home Detection Area Comparison</h2>
+    <p>This shows the improved detection zones:</p>
+    
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-color home-circle"></div>
+        <span><strong>White Circle (200px)</strong> - Visual home indicator</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color new-threshold"></div>
+        <span><strong>Green Area (8% threshold)</strong> - NEW faster detection zone</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color old-threshold"></div>
+        <span><strong>Red Area (5% threshold)</strong> - OLD smaller detection zone</span>
+      </div>
+    </div>
+    
+    <p style="margin-top: 20px;">
+      <strong>Improvements:</strong><br>
+      • 60% larger detection area (8% vs 5%)<br>
+      • 2x larger visual circle (200px vs 100px)<br>
+      • 2x faster setup time (0.5s vs 1s)<br>
+      • Better visual feedback with center dot
+    </p>
+  </div>
+</body>
+</html>

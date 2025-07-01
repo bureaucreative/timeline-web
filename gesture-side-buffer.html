@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Side-Hand Gesture with 3-Action Buffer</title>
+  <style>
+    body {
+      margin: 0;
+      background: #0a0a0a;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+    
+    /* Side zones visualization */
+    .side-zone {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      width: 30%;
+      border: 2px dashed rgba(255, 255, 255, 0.1);
+      pointer-events: none;
+      z-index: 5;
+    }
+    
+    .side-zone.left {
+      left: 0;
+      border-right: 2px dashed rgba(255, 255, 255, 0.2);
+    }
+    
+    .side-zone.right {
+      right: 0;
+      border-left: 2px dashed rgba(255, 255, 255, 0.2);
+    }
+    
+    #image-slider {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.3s ease;
+    }
+    
+    #image-slider.buffer-active {
+      opacity: 0.7;
+    }
+    
+    .image-wrapper {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .slide-image {
+      max-width: 90%;
+      max-height: 90%;
+      object-fit: contain;
+    }
+    
+    #status {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(20, 20, 20, 0.9);
+      padding: 15px 30px;
+      border-radius: 30px;
+      font-size: 18px;
+      z-index: 100;
+      text-align: center;
+    }
+    
+    #buffer-indicator {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(20, 20, 20, 0.9);
+      padding: 15px 30px;
+      border-radius: 30px;
+      z-index: 100;
+      min-width: 300px;
+      text-align: center;
+    }
+    
+    .buffer-dots {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-top: 10px;
+    }
+    
+    .buffer-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      transition: all 0.3s ease;
+    }
+    
+    .buffer-dot.active {
+      background: #44ff44;
+      transform: scale(1.2);
+    }
+    
+    #debug-info {
+      position: fixed;
+      top: 80px;
+      left: 20px;
+      background: rgba(20, 20, 20, 0.9);
+      padding: 15px;
+      border-radius: 10px;
+      font-family: monospace;
+      font-size: 14px;
+      z-index: 100;
+    }
+    
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+    }
+    
+    .swipe-indicator {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 8em;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 50;
+      pointer-events: none;
+    }
+    
+    .swipe-indicator.left {
+      left: 10%;
+    }
+    
+    .swipe-indicator.right {
+      right: 10%;
+    }
+    
+    .swipe-indicator.show {
+      opacity: 0.8;
+    }
+    
+    /* Hand activity zones */
+    .activity-zone {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+    
+    .activity-zone.active {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <video id="video" autoplay playsinline style="display:none;"></video>
+  <canvas id="canvas"></canvas>
+  
+  <div class="side-zone left"></div>
+  <div class="side-zone right"></div>
+  
+  <div class="swipe-indicator left">◀</div>
+  <div class="swipe-indicator right">▶</div>
+  
+  <div id="image-slider">
+    <div class="image-wrapper">
+      <img class="slide-image" id="current-image" src="" />
+    </div>
+  </div>
+  
+  <div id="buffer-indicator">
+    <div>Gesture Buffer: <span id="buffer-status">Ready</span></div>
+    <div class="buffer-dots">
+      <div class="buffer-dot" id="dot-1"></div>
+      <div class="buffer-dot" id="dot-2"></div>
+      <div class="buffer-dot" id="dot-3"></div>
+    </div>
+  </div>
+  
+  <div id="status">Show your hand on either side</div>
+  <div id="debug-info">
+    <div>Hand Side: <span id="hand-side">None</span></div>
+    <div>Movement Count: <span id="movement-count">0</span></div>
+    <div>Buffer State: <span id="buffer-state">Ready</span></div>
+  </div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script>
+    // 3-Action Buffer System
+    class SideHandBuffer {
+      constructor() {
+        this.movementBuffer = [];
+        this.requiredMovements = 3;
+        this.isBuffering = false;
+        this.lastPosition = null;
+        this.movementThreshold = 0.03; // 3% of screen
+        this.lastMovementTime = 0;
+        this.movementCooldown = 200; // ms between counted movements
+      }
+      
+      startBuffer() {
+        this.isBuffering = true;
+        this.movementBuffer = [];
+        console.log("Buffer started - need 3 movements");
+      }
+      
+      trackMovement(handPosition) {
+        if (!this.isBuffering) return { complete: false, count: 0 };
+        
+        const currentTime = Date.now();
+        
+        if (this.lastPosition && 
+            currentTime - this.lastMovementTime > this.movementCooldown) {
+          
+          const deltaX = Math.abs(handPosition.x - this.lastPosition.x);
+          const deltaY = Math.abs(handPosition.y - this.lastPosition.y);
+          const movement = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+          
+          if (movement > this.movementThreshold) {
+            this.movementBuffer.push({
+              from: {...this.lastPosition},
+              to: {...handPosition},
+              movement: movement,
+              time: currentTime
+            });
+            
+            this.lastMovementTime = currentTime;
+            
+            // Update visual dots
+            this.updateDots();
+            
+            if (this.movementBuffer.length >= this.requiredMovements) {
+              this.isBuffering = false;
+              return { complete: true, count: this.requiredMovements };
+            }
+          }
+        }
+        
+        this.lastPosition = {...handPosition};
+        return { complete: false, count: this.movementBuffer.length };
+      }
+      
+      updateDots() {
+        for (let i = 1; i <= 3; i++) {
+          const dot = document.getElementById(`dot-${i}`);
+          if (i <= this.movementBuffer.length) {
+            dot.classList.add('active');
+          } else {
+            dot.classList.remove('active');
+          }
+        }
+      }
+      
+      reset() {
+        this.isBuffering = false;
+        this.movementBuffer = [];
+        this.updateDots();
+      }
+      
+      isReady() {
+        return !this.isBuffering;
+      }
+    }
+    
+    // Initialize
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const status = document.getElementById('status');
+    const bufferStatus = document.getElementById('buffer-status');
+    const handSideEl = document.getElementById('hand-side');
+    const movementCountEl = document.getElementById('movement-count');
+    const bufferStateEl = document.getElementById('buffer-state');
+    
+    // Image management
+    const images = [
+      'https://picsum.photos/800/600?random=1',
+      'https://picsum.photos/800/600?random=2',
+      'https://picsum.photos/800/600?random=3',
+      'https://picsum.photos/800/600?random=4',
+      'https://picsum.photos/800/600?random=5'
+    ];
+    let currentIndex = 0;
+    
+    // Buffer system
+    const gestureBuffer = new SideHandBuffer();
+    
+    // Hand tracking
+    let lastHandSide = null;
+    let swipeStartX = null;
+    let isTracking = false;
+    
+    // Setup canvas
+    function setupCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    
+    // Load image
+    function loadImage(index) {
+      const img = document.getElementById('current-image');
+      img.src = images[index];
+    }
+    
+    // Navigate images
+    function navigateImage(direction) {
+      if (!gestureBuffer.isReady()) return;
+      
+      if (direction === 'left') {
+        currentIndex = (currentIndex - 1 + images.length) % images.length;
+        showSwipeIndicator('left');
+      } else {
+        currentIndex = (currentIndex + 1) % images.length;
+        showSwipeIndicator('right');
+      }
+      
+      loadImage(currentIndex);
+      gestureBuffer.startBuffer();
+      document.getElementById('image-slider').classList.add('buffer-active');
+      
+      setTimeout(() => {
+        document.getElementById('image-slider').classList.remove('buffer-active');
+      }, 500);
+    }
+    
+    // Show swipe indicator
+    function showSwipeIndicator(direction) {
+      const indicator = document.querySelector(`.swipe-indicator.${direction}`);
+      indicator.classList.add('show');
+      setTimeout(() => indicator.classList.remove('show'), 500);
+    }
+    
+    // Detect hand side
+    function detectHandSide(handX) {
+      if (handX < 0.3) return 'left';
+      if (handX > 0.7) return 'right';
+      return 'center';
+    }
+    
+    // Process hand
+    function processHand(hand) {
+      const handCenter = hand[9];
+      const x = 1 - handCenter.x; // Mirror
+      const y = handCenter.y;
+      
+      // Detect which side the hand is on
+      const handSide = detectHandSide(x);
+      handSideEl.textContent = handSide;
+      
+      // Track movement for buffer
+      const bufferResult = gestureBuffer.trackMovement({ x, y });
+      movementCountEl.textContent = bufferResult.count;
+      bufferStateEl.textContent = gestureBuffer.isReady() ? 'Ready' : `Buffering (${bufferResult.count}/3)`;
+      
+      // Update status
+      if (!gestureBuffer.isReady()) {
+        const remaining = 3 - bufferResult.count;
+        bufferStatus.textContent = `${remaining} movement${remaining !== 1 ? 's' : ''} needed`;
+        status.textContent = `Move hand ${remaining} more time${remaining !== 1 ? 's' : ''}`;
+      } else {
+        bufferStatus.textContent = 'Ready';
+        status.textContent = 'Swipe left/right to navigate';
+      }
+      
+      // Detect swipe only if buffer is ready and hand is on side
+      if (gestureBuffer.isReady() && (handSide === 'left' || handSide === 'right')) {
+        if (!isTracking) {
+          swipeStartX = x;
+          isTracking = true;
+        }
+        
+        const deltaX = x - swipeStartX;
+        
+        // Check for swipe
+        if (Math.abs(deltaX) > 0.15) { // 15% screen width
+          if (deltaX > 0) {
+            navigateImage('right');
+          } else {
+            navigateImage('left');
+          }
+          isTracking = false;
+        }
+      } else {
+        isTracking = false;
+      }
+      
+      // Draw hand visualization
+      drawHand(hand, x, y, handSide);
+    }
+    
+    // Draw hand
+    function drawHand(hand, x, y, side) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw hand position
+      const screenX = x * canvas.width;
+      const screenY = y * canvas.height;
+      
+      // Hand circle with buffer state color
+      ctx.strokeStyle = gestureBuffer.isReady() ? '#44ff44' : '#ffaa44';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, 30, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Fill based on side
+      ctx.fillStyle = side === 'center' ? 
+        'rgba(255, 255, 255, 0.1)' : 
+        'rgba(100, 200, 255, 0.3)';
+      ctx.fill();
+      
+      // Draw movement trail during buffer
+      if (!gestureBuffer.isReady() && gestureBuffer.movementBuffer.length > 0) {
+        ctx.strokeStyle = 'rgba(255, 170, 68, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        gestureBuffer.movementBuffer.forEach((move, i) => {
+          const fromX = move.from.x * canvas.width;
+          const fromY = move.from.y * canvas.height;
+          const toX = move.to.x * canvas.width;
+          const toY = move.to.y * canvas.height;
+          
+          if (i === 0) {
+            ctx.moveTo(fromX, fromY);
+          }
+          ctx.lineTo(toX, toY);
+        });
+        
+        ctx.stroke();
+      }
+    }
+    
+    // Initialize MediaPipe
+    const hands = new Hands({
+      locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+      }
+    });
+    
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+    
+    hands.onResults((results) => {
+      if (results.multiHandLandmarks && results.multiHandLandmarks[0]) {
+        processHand(results.multiHandLandmarks[0]);
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        handSideEl.textContent = 'None';
+      }
+    });
+    
+    // Start camera
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+        video.play();
+        
+        function processFrame() {
+          hands.send({ image: video });
+          requestAnimationFrame(processFrame);
+        }
+        
+        video.addEventListener('loadeddata', processFrame);
+      });
+    
+    // Initialize
+    setupCanvas();
+    loadImage(currentIndex);
+    window.addEventListener('resize', setupCanvas);
+  </script>
+</body>
+</html>

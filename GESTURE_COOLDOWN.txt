@@ -1,0 +1,92 @@
+# GESTURE COOLDOWN FEATURE
+
+## Overview
+The gesture system now includes a 1.5 second cooldown period after each successful swipe or fullscreen toggle. This prevents rapid successive gestures and provides a better user experience.
+
+## How It Works
+
+### Cooldown Triggers
+- **After any swipe** (left or right)
+- **After entering fullscreen** (5 fingers with palm)
+- **After exiting fullscreen** (closed fist)
+
+### Visual Feedback During Cooldown
+
+1. **Countdown Timer**
+   - Shows "Cooldown: 1.2s" on canvas
+   - Updates in real-time
+
+2. **Progress Bar**
+   - Orange bar showing remaining cooldown time
+   - Depletes from full to empty over 1.5 seconds
+
+3. **Status Message**
+   - "⏳ Wait 1.2s before next gesture"
+   - Changes to "Ready for next gesture" when done
+
+4. **Visual Dimming**
+   - Images become slightly grayed out (60% opacity)
+   - Subtle grayscale filter applied
+
+## Benefits
+
+1. **Prevents Accidental Gestures**
+   - No rapid-fire navigation
+   - Time to see each image properly
+
+2. **Animation Completion**
+   - Slide animations finish smoothly
+   - No overlapping transitions
+
+3. **Clear User Feedback**
+   - Users know when they can gesture again
+   - No confusion about why gestures aren't working
+
+4. **Better Control**
+   - More deliberate navigation
+   - Reduced gesture errors
+
+## Technical Implementation
+
+### Key Variables
+```javascript
+let gestureCooldown = false;    // Cooldown active flag
+let cooldownTimer = null;       // Timer reference
+let cooldownEndTime = 0;        // When cooldown ends
+```
+
+### Cooldown Function
+```javascript
+function startGestureCooldown() {
+  gestureCooldown = true;
+  cooldownEndTime = Date.now() + 1500;
+  imageSlider.classList.add('cooldown-active');
+  
+  cooldownTimer = setTimeout(() => {
+    gestureCooldown = false;
+    imageSlider.classList.remove('cooldown-active');
+    status.textContent = 'Ready for next gesture';
+  }, 1500);
+}
+```
+
+### Early Return in updateCanvas
+During cooldown, the system:
+1. Shows cooldown visuals
+2. Skips all gesture detection
+3. Returns early from update loop
+
+## User Experience
+
+### Before Cooldown
+- Could accidentally swipe multiple times
+- Animations could overlap
+- Confusing rapid changes
+
+### After Cooldown
+- One gesture at a time
+- Clear visual feedback
+- Smooth, controlled navigation
+- Professional feel
+
+The 1.5 second delay is long enough to see the result of your gesture but short enough to not feel sluggish.

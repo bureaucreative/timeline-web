@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mirror Test - Check Hand Positions</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+    
+    .side-indicator {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 48px;
+      font-weight: bold;
+      padding: 20px;
+      background: rgba(20, 20, 20, 0.8);
+      border-radius: 20px;
+      z-index: 100;
+    }
+    
+    .left-side {
+      left: 20px;
+      color: #4a9eff;
+    }
+    
+    .right-side {
+      right: 20px;
+      color: #ff4a9e;
+    }
+    
+    #status {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(20, 20, 20, 0.9);
+      padding: 20px;
+      border-radius: 15px;
+      text-align: center;
+      font-size: 20px;
+      z-index: 100;
+    }
+    
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+    }
+    
+    .instructions {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      font-size: 16px;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <video id="video" autoplay playsinline style="display:none;"></video>
+  <canvas id="canvas"></canvas>
+  
+  <div class="side-indicator left-side">LEFT<br>SIDE</div>
+  <div class="side-indicator right-side">RIGHT<br>SIDE</div>
+  
+  <div id="status">
+    Raise your RIGHT hand → Should appear on RIGHT side<br>
+    Raise your LEFT hand → Should appear on LEFT side
+  </div>
+  
+  <div class="instructions">
+    <p>This test shows if hand mirroring is working correctly</p>
+    <p>Your hands should appear on their natural sides</p>
+  </div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script>
+    const hands = new Hands({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    });
+    
+    hands.setOptions({
+      maxNumHands: 2,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+    
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    
+    // Detect which hand (corrected for natural view)
+    function detectHandSide(x) {
+      return x < 0.5 ? 'left' : 'right';
+    }
+    
+    hands.onResults((results) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        results.multiHandLandmarks.forEach((landmarks, index) => {
+          const handSide = detectHandSide(landmarks[9].x);
+          
+          // Mirror the landmarks for display
+          const mirroredLandmarks = landmarks.map(point => ({
+            x: 1 - point.x,
+            y: point.y,
+            z: point.z
+          }));
+          
+          // Choose color based on hand side
+          const color = handSide === 'left' ? '#4a9eff' : '#ff4a9e';
+          
+          // Draw connections
+          const connections = [
+            [0, 1], [1, 2], [2, 3], [3, 4],
+            [0, 5], [5, 6], [6, 7], [7, 8],
+            [5, 9], [9, 10], [10, 11], [11, 12],
+            [9, 13], [13, 14], [14, 15], [15, 16],
+            [13, 17], [17, 18], [18, 19], [19, 20],
+            [0, 17]
+          ];
+          
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 3;
+          
+          connections.forEach(([start, end]) => {
+            ctx.beginPath();
+            ctx.moveTo(mirroredLandmarks[start].x * canvas.width, mirroredLandmarks[start].y * canvas.height);
+            ctx.lineTo(mirroredLandmarks[end].x * canvas.width, mirroredLandmarks[end].y * canvas.height);
+            ctx.stroke();
+          });
+          
+          // Draw joints
+          ctx.fillStyle = color;
+          mirroredLandmarks.forEach(point => {
+            ctx.beginPath();
+            ctx.arc(point.x * canvas.width, point.y * canvas.height, 8, 0, 2 * Math.PI);
+            ctx.fill();
+          });
+          
+          // Draw label
+          const palmCenter = mirroredLandmarks[9];
+          ctx.fillStyle = 'white';
+          ctx.font = 'bold 24px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText(
+            handSide.toUpperCase() + ' HAND', 
+            palmCenter.x * canvas.width, 
+            palmCenter.y * canvas.height - 40
+          );
+        });
+      }
+    });
+    
+    const camera = new Camera(video, {
+      onFrame: async () => {
+        await hands.send({image: video});
+      },
+      width: 640,
+      height: 480
+    });
+    
+    camera.start();
+  </script>
+</body>
+</html>

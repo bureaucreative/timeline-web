@@ -1,0 +1,105 @@
+# SWIPE-FIRST GESTURE PRIORITY
+
+## Overview
+The new `swipe-priority.html` file modifies the gesture detection to strongly prioritize swiping over fullscreen, making navigation the primary interaction mode.
+
+## Key Changes
+
+### 1. **Stricter Palm Detection (85+ score required)**
+- Old: Palm mode activated at score > 60
+- **New: Palm mode requires score > 85**
+- Near-perfect palm facing required for fullscreen
+- Shows palm score percentage when approaching threshold
+
+### 2. **Easier Swipe Detection (< 70 score)**
+- Old: Profile mode at score < 40
+- **New: Swipe mode works at score < 70**
+- Much wider range for swipe detection
+- Covers most hand positions
+
+### 3. **New Transition Zone (70-85)**
+- Called "transition-swipe" mode
+- **Swipes still work in this zone!**
+- Purple color indicator
+- Status: "Swipe works at any angle!"
+
+### 4. **Hold Time for Fullscreen**
+- Must hold perfect palm position for ~0.5 seconds
+- Progress indicator shows hold percentage
+- Prevents accidental fullscreen activation
+- Requires deliberate gesture
+
+### 5. **Lower Swipe Thresholds**
+- Movement threshold: 0.12 (was 0.15)
+- Velocity threshold: 0.25 (was 0.3)
+- Start detection: 0.03 (was 0.05)
+- Easier and more responsive swiping
+
+## Visual Feedback
+
+### Palm Confidence Display
+- Shows when score > 70
+- Displays: "Palm Score: XX% (Need 85%+ for fullscreen)"
+- Helps users understand why fullscreen isn't activating
+
+### Mode Indicators
+- **Green**: Palm mode (85+ score)
+- **Blue**: Profile mode (< 70 score)
+- **Purple**: Transition-swipe mode (70-85)
+
+### Status Messages
+- Clear feedback about current mode
+- Tells users exactly what score they need
+- Shows hold progress for fullscreen
+
+## Usage Experience
+
+### For Swiping:
+1. Works in almost any hand position
+2. No need for perfect side view
+3. Quick response to gestures
+4. Works even in transition zone
+
+### For Fullscreen:
+1. Requires deliberate palm facing
+2. Must achieve 85+ palm score
+3. Hold 5 fingers for 0.5 seconds
+4. Clear visual feedback during hold
+
+## Benefits
+
+1. **Swipe Navigation is Primary**
+   - Works in 85% of hand positions
+   - Lower thresholds for easier triggering
+   - No accidental fullscreen interruptions
+
+2. **Fullscreen is Deliberate**
+   - Requires perfect positioning
+   - Hold time prevents accidents
+   - Clear requirements shown to user
+
+3. **Better User Experience**
+   - Natural prioritization of common action (swiping)
+   - Fullscreen only when intentionally activated
+   - Clear feedback about gesture requirements
+
+## Technical Details
+
+### Orientation Thresholds
+```javascript
+if (depthScore > 85) {
+  return 'palm';           // Strict requirement
+} else if (depthScore < 70) {
+  return 'profile';        // Easy to achieve
+} else {
+  return 'transition-swipe'; // Swipe still works!
+}
+```
+
+### Fullscreen Requirements
+1. Palm score >= 85
+2. 5 fingers extended
+3. Hold for 15 frames (~0.5 seconds)
+4. Visual progress indicator
+
+This configuration makes the system much more practical for everyday use, with swipe navigation being the primary interaction and fullscreen being a special mode requiring deliberate activation.

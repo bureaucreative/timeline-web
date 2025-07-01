@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gesture State Machine with Neutral Zone</title>
+  <style>
+    body { 
+      margin: 0; 
+      overflow: hidden; 
+      font-family: -apple-system, sans-serif; 
+      background: #0a0a0a; 
+      color: white; 
+    }
+    
+    /* Image sliding container */
+    #image-slider {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    .image-wrapper {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .image-wrapper.current {
+      transform: translateX(0);
+    }
+    
+    .image-wrapper.prev {
+      transform: translateX(-100%);
+    }
+    
+    .image-wrapper.next {
+      transform: translateX(100%);
+    }
+    
+    .image-wrapper.slide-out-left {
+      transform: translateX(-100%);
+    }
+    
+    .image-wrapper.slide-out-right {
+      transform: translateX(100%);
+    }
+    
+    .slide-image {
+      max-width: 80vw;
+      max-height: 70vh;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+      object-fit: contain;
+      cursor: pointer;
+    }
+    
+    /* Fullscreen state */
+    #image-slider.fullscreen .slide-image {
+      max-width: 100vw;
+      max-height: 100vh;
+      width: 100vw;
+      height: 100vh;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    
+    #main-date {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 2em;
+      color: #4a9eff;
+      text-shadow: 0 2px 20px rgba(0,0,0,0.8);
+      transition: all 0.5s ease;
+      z-index: 100;
+    }
+    
+    #main-date.fullscreen {
+      bottom: 60px;
+      font-size: 3em;
+      z-index: 101;
+    }
+    
+    #counter {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.2em;
+      opacity: 0.6;
+      transition: opacity 0.5s ease;
+      z-index: 100;
+    }
+    
+    #counter.fullscreen {
+      opacity: 0;
+    }
+    
+    #status {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 15px 30px;
+      background: rgba(74, 158, 255, 0.2);
+      border-radius: 30px;
+      font-size: 1.2em;
+      transition: opacity 0.5s ease;
+      z-index: 100;
+    }
+    
+    #status.fullscreen {
+      opacity: 0.3;
+    }
+    
+    /* State indicator */
+    #state-indicator {
+      position: fixed;
+      top: 80px;
+      left: 20px;
+      background: rgba(20, 20, 20, 0.9);
+      padding: 15px;
+      border-radius: 10px;
+      font-family: monospace;
+      font-size: 14px;
+      z-index: 100;
+      min-width: 250px;
+    }
+    
+    .state-idle { color: #44ff44; }
+    .state-gesture-start { color: #ffaa44; }
+    .state-gesture-confirmed { color: #ff4444; }
+    .state-wait-return { color: #4a9eff; }
+    
+    /* Swipe indicators */
+    .swipe-arrow {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 6em;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 110;
+    }
+    
+    #swipe-left {
+      left: 60px;
+    }
+    
+    #swipe-right {
+      right: 60px;
+    }
+    
+    .swipe-arrow.show {
+      opacity: 0.8;
+      animation: swipeAnim 0.6s ease;
+    }
+    
+    @keyframes swipeAnim {
+      0% { opacity: 0; transform: translateY(-50%) scale(0.5); }
+      50% { opacity: 0.8; transform: translateY(-50%) scale(1.2); }
+      100% { opacity: 0.8; transform: translateY(-50%) scale(1); }
+    }
+    
+    /* Enhanced swipe visualization */
+    #velocity-indicator {
+      position: fixed;
+      top: 140px;
+      right: 20px;
+      background: rgba(20, 20, 20, 0.9);
+      padding: 15px;
+      border-radius: 10px;
+      font-family: monospace;
+      font-size: 14px;
+      min-width: 200px;
+      z-index: 100;
+    }
+    
+    .velocity-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    
+    .velocity-fill {
+      height: 100%;
+      background: linear-gradient(to right, #4a9eff, #ff4a9e);
+      width: 0%;
+      transition: width 0.1s ease;
+    }
+    
+    #finger-debug {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(20, 20, 20, 0.9);
+      padding: 15px;
+      border-radius: 10px;
+      font-family: monospace;
+      font-size: 14px;
+      z-index: 100;
+    }
+    
+    #depth-indicator {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(20, 20, 20, 0.9);
+      padding: 15px;
+      border-radius: 10px;
+      font-family: monospace;
+      font-size: 14px;
+      z-index: 100;
+    }
+    
+    .depth-bar {
+      width: 200px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+    
+    .depth-fill {
+      height: 100%;
+      background: linear-gradient(to right, #ff4444, #ffaa44, #44ff44);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    
+    #palm-confidence {
+      position: fixed;
+      top: 60px;
+      left: 20px;
+      background: rgba(20, 20, 20, 0.9);
+      padding: 10px 15px;
+      border-radius: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    #palm-confidence.show {
+      opacity: 1;
+    }
+    
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <video id="video" autoplay playsinline style="display:none;"></video>
+  <canvas id="canvas"></canvas>
+  
+  <div id="swipe-left" class="swipe-arrow">◀</div>
+  <div id="swipe-right" class="swipe-arrow">▶</div>
+  
+  <div id="image-slider">
+    <div class="image-wrapper current" id="current-wrapper">
+      <img class="slide-image" id="current-image" src="" />
+    </div>
+    <div class="image-wrapper next" id="next-wrapper">
+      <img class="slide-image" id="next-image" src="" />
+    </div>
+    <div class="image-wrapper prev" id="prev-wrapper">
+      <img class="slide-image" id="prev-image" src="" />
+    </div>
+  </div>
+  
+  <div id="main-date"></div>
+  <div id="counter"></div>
+  <div id="status">Show your hand</div>
+  <div id="finger-debug">Fingers: 0 | Swipe: None | Velocity: 0.00 | Mode: unknown</div>
+  <div id="depth-indicator">
+    Hand Orientation: Unknown
+    <div class="depth-bar">
+      <div class="depth-fill" id="depth-fill"></div>
+    </div>
+  </div>
+  <div id="palm-confidence">Palm Score: 0%</div>
+  <div id="state-indicator">
+    <div>State: <span id="state-text" class="state-idle">IDLE</span></div>
+    <div>In Neutral Zone: <span id="neutral-zone-text">No</span></div>
+    <div>Gesture Progress: <span id="gesture-progress">0%</span></div>
+  </div>
+  
+  <div id="velocity-indicator">
+    Swipe Velocity
+    <div class="velocity-bar">
+      <div class="velocity-fill" id="velocity-fill"></div>
+    </div>
+  </div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  
+  <script>
+    const imageSlider = document.getElementById('image-slider');
+    const currentWrapper = document.getElementById('current-wrapper');
+    const nextWrapper = document.getElementById('next-wrapper');
+    const prevWrapper = document.getElementById('prev-wrapper');
+    const currentImage = document.getElementById('current-image');
+    const nextImage = document.getElementById('next-image');
+    const prevImage = document.getElementById('prev-image');
+    
+    const mainDate = document.getElementById('main-date');
+    const counter = document.getElementById('counter');
+    const status = document.getElementById('status');
+    const fingerDebug = document.getElementById('finger-debug');
+    const depthIndicator = document.getElementById('depth-indicator');
+    const depthFill = document.getElementById('depth-fill');
+    const velocityIndicator = document.getElementById('velocity-indicator');
+    const velocityFill = document.getElementById('velocity-fill');
+    const palmConfidence = document.getElementById('palm-confidence');
+    const swipeLeft = document.getElementById('swipe-left');
+    const swipeRight = document.getElementById('swipe-right');
+    const stateText = document.getElementById('state-text');
+    const neutralZoneText = document.getElementById('neutral-zone-text');
+    const gestureProgressText = document.getElementById('gesture-progress');
+    
+    let currentIndex = 0;
+    let handHistory = [];
+    let isFullscreen = false;
+    let lastFingerCount = 0;
+    let canNavigate = true;
+    let handOrientation = 'unknown';
+    let isAnimating = false;
+    let currentDepthScore = 0;
+    let palmHoldTime = 0;
+    
+    // Gesture State Machine
+    const GestureState = {
+      IDLE: 'IDLE',
+      GESTURE_START: 'GESTURE_START',
+      GESTURE_CONFIRMED: 'GESTURE_CONFIRMED',
+      WAIT_FOR_RETURN: 'WAIT_FOR_RETURN'
+    };
+    
+    let gestureState = GestureState.IDLE;
+    let gestureStartPosition = null;
+    let gestureStartTime = 0;
+    let lastGestureDirection = null;
+    
+    // Neutral Zone Definition (center 40% of screen)
+    const NEUTRAL_ZONE = {
+      xMin: 0.3,  // 30% from left
+      xMax: 0.7,  // 70% from left
+      yMin: 0.3,  // 30% from top
+      yMax: 0.7   // 70% from top
+    };
+    
+    // Gesture thresholds
+    const GESTURE_THRESHOLDS = {
+      minDistance: 0.15,        // Minimum movement distance
+      minVelocity: 0.4,         // Minimum velocity (increased for intentional gestures)
+      maxReturnTime: 2000,      // Max time to wait for return to neutral
+      gestureTimeout: 1000,     // Max time for a gesture to complete
+      minGestureTime: 100       // Minimum time for gesture (filters out too-quick movements)
+    };
+    
+    // Images
+    const images = [];
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                   'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    for (let i = 0; i < 12; i++) {
+      images.push({
+        date: `${months[i]} 2024`,
+        url: `https://picsum.photos/1920/1080?random=${i + 800}`
+      });
+    }
+    
+    // Check if hand is in neutral zone
+    function isInNeutralZone(x, y) {
+      return x >= NEUTRAL_ZONE.xMin && 
+             x <= NEUTRAL_ZONE.xMax && 
+             y >= NEUTRAL_ZONE.yMin && 
+             y <= NEUTRAL_ZONE.yMax;
+    }
+    
+    // Update state machine
+    function updateGestureState(newState) {
+      gestureState = newState;
+      
+      // Update UI
+      stateText.textContent = newState;
+      stateText.className = `state-${newState.toLowerCase().replace(/_/g, '-')}`;
+      
+      // Log state change
+      console.log(`State: ${newState}`);
+    }
+    
+    // Preload adjacent images
+    function preloadImages() {
+      if (currentIndex > 0) {
+        prevImage.src = images[currentIndex - 1].url;
+      }
+      if (currentIndex < images.length - 1) {
+        nextImage.src = images[currentIndex + 1].url;
+      }
+    }
+    
+    function updateDisplay() {
+      currentImage.src = images[currentIndex].url;
+      mainDate.textContent = images[currentIndex].date;
+      counter.textContent = `${currentIndex + 1} / ${images.length}`;
+      preloadImages();
+    }
+    
+    function slideImages(direction) {
+      if (isAnimating || !canNavigate || isFullscreen) return;
+      
+      isAnimating = true;
+      canNavigate = false;
+      
+      // Determine new index
+      let newIndex = currentIndex;
+      if (direction === 'right' && currentIndex < images.length - 1) {
+        newIndex = currentIndex + 1;
+      } else if (direction === 'left' && currentIndex > 0) {
+        newIndex = currentIndex - 1;
+      } else {
+        isAnimating = false;
+        canNavigate = true;
+        return; // No more images in that direction
+      }
+      
+      // Show swipe arrow
+      if (direction === 'right') {
+        swipeRight.classList.add('show');
+        setTimeout(() => swipeRight.classList.remove('show'), 600);
+      } else {
+        swipeLeft.classList.add('show');
+        setTimeout(() => swipeLeft.classList.remove('show'), 600);
+      }
+      
+      // Prepare the incoming image
+      const incomingWrapper = direction === 'right' ? nextWrapper : prevWrapper;
+      const incomingImage = direction === 'right' ? nextImage : prevImage;
+      const outgoingWrapper = currentWrapper;
+      
+      // Set the incoming image
+      incomingImage.src = images[newIndex].url;
+      
+      // Start the animation
+      requestAnimationFrame(() => {
+        // Move current image out
+        outgoingWrapper.classList.remove('current');
+        outgoingWrapper.classList.add(direction === 'right' ? 'slide-out-left' : 'slide-out-right');
+        
+        // Move new image in
+        incomingWrapper.classList.remove('next', 'prev');
+        incomingWrapper.classList.add('current');
+        
+        // Update info
+        currentIndex = newIndex;
+        mainDate.textContent = images[currentIndex].date;
+        counter.textContent = `${currentIndex + 1} / ${images.length}`;
+        
+        // After animation completes
+        setTimeout(() => {
+          // Reset positions
+          outgoingWrapper.classList.remove('slide-out-left', 'slide-out-right');
+          
+          // Swap references
+          if (direction === 'right') {
+            // Current becomes prev
+            prevWrapper.innerHTML = outgoingWrapper.innerHTML;
+            prevWrapper.className = 'image-wrapper prev';
+            
+            // Next becomes current
+            currentWrapper.innerHTML = incomingWrapper.innerHTML;
+            currentWrapper.className = 'image-wrapper current';
+            
+            // Prepare new next
+            nextWrapper.className = 'image-wrapper next';
+            if (currentIndex < images.length - 1) {
+              nextImage.src = images[currentIndex + 1].url;
+            }
+          } else {
+            // Current becomes next
+            nextWrapper.innerHTML = outgoingWrapper.innerHTML;
+            nextWrapper.className = 'image-wrapper next';
+            
+            // Prev becomes current
+            currentWrapper.innerHTML = incomingWrapper.innerHTML;
+            currentWrapper.className = 'image-wrapper current';
+            
+            // Prepare new prev
+            prevWrapper.className = 'image-wrapper prev';
+            if (currentIndex > 0) {
+              prevImage.src = images[currentIndex - 1].url;
+            }
+          }
+          
+          isAnimating = false;
+          setTimeout(() => canNavigate = true, 200);
+        }, 600);
+      });
+    }
+    
+    function navigateImage(direction) {
+      slideImages(direction);
+      status.textContent = direction === 'right' ? 'Next →' : '← Previous';
+      lastGestureDirection = direction;
+      
+      // Move to WAIT_FOR_RETURN state
+      updateGestureState(GestureState.WAIT_FOR_RETURN);
+    }
+    
+    function setFullscreen(active) {
+      isFullscreen = active;
+      
+      if (active) {
+        imageSlider.classList.add('fullscreen');
+        mainDate.classList.add('fullscreen');
+        counter.classList.add('fullscreen');
+        status.classList.add('fullscreen');
+        status.textContent = '✋ Fullscreen - Close hand to exit';
+      } else {
+        imageSlider.classList.remove('fullscreen');
+        mainDate.classList.remove('fullscreen');
+        counter.classList.remove('fullscreen');
+        status.classList.remove('fullscreen');
+        status.textContent = 'Normal View';
+      }
+      
+      // Also require return to neutral after fullscreen toggle
+      updateGestureState(GestureState.WAIT_FOR_RETURN);
+    }    
+    // Count extended fingers
+    function countFingers(landmarks) {
+      let count = 0;
+      
+      // Thumb - special case (use x-distance)
+      const wrist = landmarks[0];
+      const thumbTip = landmarks[4];
+      const thumbBase = landmarks[2];
+      if (Math.abs(thumbTip.x - wrist.x) > Math.abs(thumbBase.x - wrist.x) * 1.3) {
+        count++;
+      }
+      
+      // Other fingers - check Y position
+      const fingers = [
+        { tip: 8, pip: 6, mcp: 5 },    // Index
+        { tip: 12, pip: 10, mcp: 9 },  // Middle
+        { tip: 16, pip: 14, mcp: 13 }, // Ring
+        { tip: 20, pip: 18, mcp: 17 }  // Pinky
+      ];
+      
+      fingers.forEach(finger => {
+        const tip = landmarks[finger.tip];
+        const pip = landmarks[finger.pip];
+        const mcp = landmarks[finger.mcp];
+        
+        // Finger is extended if tip is above pip and pip is above mcp
+        if (tip.y < pip.y - 0.02 && pip.y < mcp.y) {
+          count++;
+        }
+      });
+      
+      return count;
+    }
+    
+    // Detect hand Z-depth orientation
+    function detectHandOrientation(landmarks) {
+      // Calculate hand width (x-spread)
+      const xCoords = landmarks.map(p => p.x);
+      const handWidth = Math.max(...xCoords) - Math.min(...xCoords);
+      
+      // Calculate hand height (y-spread)
+      const yCoords = landmarks.map(p => p.y);
+      const handHeight = Math.max(...yCoords) - Math.min(...yCoords);
+      
+      // Get key landmarks for depth analysis
+      const wrist = landmarks[0];
+      const indexMcp = landmarks[5];
+      const middleMcp = landmarks[9];
+      const ringMcp = landmarks[13];
+      const pinkyMcp = landmarks[17];
+      
+      // Calculate average knuckle spacing (horizontal distance between MCPs)
+      const knuckleSpacing = [
+        Math.abs(middleMcp.x - indexMcp.x),
+        Math.abs(ringMcp.x - middleMcp.x),
+        Math.abs(pinkyMcp.x - ringMcp.x)
+      ].reduce((a, b) => a + b) / 3;
+      
+      // Calculate thumb position relative to index finger
+      const thumbTip = landmarks[4];
+      const indexTip = landmarks[8];
+      const thumbIndexDistance = Math.sqrt(
+        Math.pow(thumbTip.x - indexTip.x, 2) + 
+        Math.pow(thumbTip.y - indexTip.y, 2)
+      );
+      
+      // Analyze palm vs profile characteristics
+      const aspectRatio = handWidth / handHeight;
+      const normalizedKnuckleSpacing = knuckleSpacing / handWidth;
+      
+      // Palm facing camera: wider aspect ratio, larger knuckle spacing
+      // Profile view: narrower aspect ratio, smaller knuckle spacing
+      const palmScore = (aspectRatio * 0.4) + (normalizedKnuckleSpacing * 0.4) + (thumbIndexDistance * 0.2);
+      
+      // Normalize palm score to 0-100
+      const depthScore = Math.min(Math.max(palmScore * 200, 0), 100);
+      currentDepthScore = depthScore;
+      
+      // Update depth visualization
+      depthFill.style.width = `${depthScore}%`;
+      
+      // Stricter palm detection for fullscreen
+      if (depthScore > 85) {
+        return 'palm';
+      } else if (depthScore < 70) {
+        return 'profile';
+      } else {
+        return 'transition';
+      }
+    }
+    
+    // Enhanced swipe detection with state machine
+    let swipeState = {
+      history: [],
+      velocity: 0,
+      direction: null,
+      progress: 0,
+      startX: null,
+      startY: null,
+      startTime: null
+    };
+    
+    function detectStateMachineSwipe(hand, handOrientation) {
+      // Get hand center position
+      const center = hand[9]; // Middle MCP
+      const currentX = 1 - center.x; // Mirror for natural movement
+      const currentY = center.y;
+      const currentTime = Date.now();
+      
+      // Check if in neutral zone
+      const inNeutralZone = isInNeutralZone(currentX, currentY);
+      neutralZoneText.textContent = inNeutralZone ? 'Yes' : 'No';
+      
+      // State machine logic
+      switch (gestureState) {
+        case GestureState.IDLE:
+          // Wait for hand to leave neutral zone with significant movement
+          if (!inNeutralZone && handOrientation !== 'palm') {
+            // Start tracking potential gesture
+            gestureStartPosition = { x: currentX, y: currentY };
+            gestureStartTime = currentTime;
+            swipeState.startX = currentX;
+            swipeState.startY = currentY;
+            swipeState.startTime = currentTime;
+            swipeState.history = [{ x: currentX, y: currentY, time: currentTime }];
+            updateGestureState(GestureState.GESTURE_START);
+          }
+          break;
+          
+        case GestureState.GESTURE_START:
+          // Track movement and check for valid gesture
+          swipeState.history.push({ x: currentX, y: currentY, time: currentTime });
+          
+          // Keep history limited
+          if (swipeState.history.length > 30) {
+            swipeState.history.shift();
+          }
+          
+          // Calculate movement from start
+          const deltaX = currentX - swipeState.startX;
+          const deltaY = currentY - swipeState.startY;
+          const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+          const elapsedTime = currentTime - swipeState.startTime;
+          
+          // Calculate velocity
+          if (swipeState.history.length >= 5) {
+            const recent = swipeState.history.slice(-5);
+            const older = swipeState.history.slice(-10, -5);
+            if (older.length > 0) {
+              const recentAvgX = recent.reduce((sum, p) => sum + p.x, 0) / recent.length;
+              const olderAvgX = older.reduce((sum, p) => sum + p.x, 0) / older.length;
+              const timeDiff = recent[recent.length - 1].time - older[0].time;
+              swipeState.velocity = Math.abs((recentAvgX - olderAvgX) / timeDiff * 1000);
+            }
+          }
+          
+          // Update progress
+          swipeState.progress = Math.min(distance / GESTURE_THRESHOLDS.minDistance, 1.0);
+          gestureProgressText.textContent = `${Math.round(swipeState.progress * 100)}%`;
+          
+          // Check for gesture confirmation
+          if (elapsedTime > GESTURE_THRESHOLDS.minGestureTime) {
+            if (distance > GESTURE_THRESHOLDS.minDistance || 
+                swipeState.velocity > GESTURE_THRESHOLDS.minVelocity) {
+              // Valid gesture detected
+              swipeState.direction = deltaX > 0 ? 'right' : 'left';
+              updateGestureState(GestureState.GESTURE_CONFIRMED);
+              
+              // Execute the gesture
+              navigateImage(swipeState.direction);
+            } else if (elapsedTime > GESTURE_THRESHOLDS.gestureTimeout) {
+              // Gesture timeout - return to idle
+              updateGestureState(GestureState.IDLE);
+              swipeState.progress = 0;
+            }
+          }
+          
+          // Check if returned to neutral without completing gesture
+          if (inNeutralZone) {
+            updateGestureState(GestureState.IDLE);
+            swipeState.progress = 0;
+          }
+          break;
+          
+        case GestureState.GESTURE_CONFIRMED:
+          // Gesture has been executed, waiting for state transition
+          // This state is brief, immediately moves to WAIT_FOR_RETURN
+          break;
+          
+        case GestureState.WAIT_FOR_RETURN:
+          // Wait for hand to return to neutral zone
+          if (inNeutralZone) {
+            updateGestureState(GestureState.IDLE);
+            swipeState.progress = 0;
+            swipeState.velocity = 0;
+            status.textContent = 'Ready for next gesture';
+          } else {
+            // Show waiting status
+            const waitTime = currentTime - gestureStartTime;
+            if (waitTime > GESTURE_THRESHOLDS.maxReturnTime) {
+              // Timeout - force return to idle
+              updateGestureState(GestureState.IDLE);
+              status.textContent = 'Timeout - gesture ready';
+            } else {
+              status.textContent = '↩️ Return hand to center';
+            }
+          }
+          break;
+      }
+      
+      // Update velocity indicator
+      const velocityPercent = Math.min(swipeState.velocity * 100, 100);
+      velocityFill.style.width = `${velocityPercent}%`;
+      
+      return swipeState;
+    }
+    
+    function updateCanvas(results) {
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw neutral zone
+      const neutralZonePixels = {
+        x: NEUTRAL_ZONE.xMin * canvas.width,
+        y: NEUTRAL_ZONE.yMin * canvas.height,
+        width: (NEUTRAL_ZONE.xMax - NEUTRAL_ZONE.xMin) * canvas.width,
+        height: (NEUTRAL_ZONE.yMax - NEUTRAL_ZONE.yMin) * canvas.height
+      };
+      
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([10, 10]);
+      ctx.strokeRect(
+        neutralZonePixels.x,
+        neutralZonePixels.y,
+        neutralZonePixels.width,
+        neutralZonePixels.height
+      );
+      ctx.setLineDash([]);
+      
+      // Add neutral zone label
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.font = '16px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('NEUTRAL ZONE', 
+        neutralZonePixels.x + neutralZonePixels.width / 2,
+        neutralZonePixels.y + neutralZonePixels.height / 2
+      );
+      
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const hand = results.multiHandLandmarks[0];
+        
+        // Detect hand orientation
+        handOrientation = detectHandOrientation(hand);
+        
+        // Update depth indicator
+        const orientationText = {
+          'palm': '✋ Palm Facing (Need 85%+ for fullscreen)',
+          'profile': '👉 Side View (Swipe Ready)',
+          'transition': '🤚 Transitioning...'
+        };
+        depthIndicator.innerHTML = `Hand Orientation: ${orientationText[handOrientation]}
+          <div class="depth-bar">
+            <div class="depth-fill" id="depth-fill"></div>
+          </div>`;
+        
+        // Show palm confidence when in palm range
+        if (currentDepthScore > 70) {
+          palmConfidence.classList.add('show');
+          palmConfidence.textContent = `Palm Score: ${Math.round(currentDepthScore)}% (Need 85%+ for fullscreen)`;
+        } else {
+          palmConfidence.classList.remove('show');
+        }
+        
+        // Draw hand visualization
+        const center = hand[9];
+        const x = (1 - center.x) * canvas.width;
+        const y = center.y * canvas.height;
+        
+        // Color based on state and orientation
+        let handColor;
+        switch (gestureState) {
+          case GestureState.IDLE:
+            handColor = 'rgba(68, 255, 68, 0.3)'; // Green
+            break;
+          case GestureState.GESTURE_START:
+            handColor = 'rgba(255, 170, 68, 0.3)'; // Orange
+            break;
+          case GestureState.GESTURE_CONFIRMED:
+            handColor = 'rgba(255, 68, 68, 0.3)'; // Red
+            break;
+          case GestureState.WAIT_FOR_RETURN:
+            handColor = 'rgba(74, 158, 255, 0.3)'; // Blue
+            break;
+        }
+        
+        ctx.fillStyle = handColor;
+        ctx.beginPath();
+        ctx.arc(x, y, 50, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Draw hand outline
+        ctx.strokeStyle = handColor.replace('0.3', '0.8');
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        
+        // Connect key points for visual feedback
+        const connections = [
+          [0, 1], [1, 2], [2, 3], [3, 4],     // Thumb
+          [0, 5], [5, 6], [6, 7], [7, 8],     // Index
+          [5, 9], [9, 10], [10, 11], [11, 12], // Middle
+          [9, 13], [13, 14], [14, 15], [15, 16], // Ring
+          [13, 17], [17, 18], [18, 19], [19, 20], // Pinky
+        ];
+        
+        connections.forEach(([start, end]) => {
+          const p1 = hand[start];
+          const p2 = hand[end];
+          ctx.moveTo((1 - p1.x) * canvas.width, p1.y * canvas.height);
+          ctx.lineTo((1 - p2.x) * canvas.width, p2.y * canvas.height);
+        });
+        ctx.stroke();
+        
+        // Draw movement trail during gesture
+        if (gestureState === GestureState.GESTURE_START && swipeState.history.length > 1) {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          
+          swipeState.history.forEach((point, i) => {
+            const px = point.x * canvas.width;
+            const py = point.y * canvas.height;
+            if (i === 0) {
+              ctx.moveTo(px, py);
+            } else {
+              ctx.lineTo(px, py);
+            }
+          });
+          ctx.stroke();
+          
+          // Draw start point
+          if (swipeState.startX !== null) {
+            ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
+            ctx.beginPath();
+            ctx.arc(
+              swipeState.startX * canvas.width,
+              swipeState.startY * canvas.height,
+              10, 0, 2 * Math.PI
+            );
+            ctx.fill();
+          }
+        }
+        
+        // Count fingers
+        const fingerCount = countFingers(hand);
+        
+        // Run state machine for swipe detection
+        const swipeResult = detectStateMachineSwipe(hand, handOrientation);
+        
+        // Update debug info
+        const debugText = `Fingers: ${fingerCount} | ` +
+          `Swipe: ${swipeResult.direction || 'None'} | ` +
+          `Velocity: ${swipeResult.velocity.toFixed(2)} | ` +
+          `Mode: ${handOrientation}`;
+        fingerDebug.textContent = debugText;
+        
+        // Handle palm gestures (fullscreen) - only in IDLE or WAIT_FOR_RETURN states
+        if (handOrientation === 'palm' && 
+            (gestureState === GestureState.IDLE || gestureState === GestureState.WAIT_FOR_RETURN)) {
+          if (fingerCount === 5 && !isFullscreen && currentDepthScore >= 85) {
+            palmHoldTime++;
+            if (palmHoldTime > 15) { // Require holding for ~0.5 seconds
+              setFullscreen(true);
+              palmHoldTime = 0;
+            } else {
+              status.textContent = `✋ Hold steady... ${Math.round(palmHoldTime/15 * 100)}%`;
+            }
+          } else if (fingerCount <= 1 && isFullscreen && lastFingerCount > 1) {
+            // Closed hand - exit fullscreen
+            setFullscreen(false);
+            palmHoldTime = 0;
+          } else {
+            palmHoldTime = 0;
+            if (!isFullscreen && gestureState === GestureState.IDLE) {
+              status.textContent = currentDepthScore >= 85 ? 
+                '✋ Perfect palm! Show 5 fingers for fullscreen' : 
+                `✋ Need better palm angle (${Math.round(currentDepthScore)}% - need 85%)`;
+            }
+          }
+          lastFingerCount = fingerCount;
+        } else {
+          palmHoldTime = 0;
+        }
+        
+      } else {
+        status.textContent = 'Show your hand';
+        fingerDebug.textContent = 'Fingers: 0 | Swipe: None | Velocity: 0.00 | Mode: unknown';
+        depthIndicator.innerHTML = `Hand Orientation: Unknown
+          <div class="depth-bar">
+            <div class="depth-fill" id="depth-fill" style="width: 0%"></div>
+          </div>`;
+        velocityIndicator.style.display = 'none';
+        palmConfidence.classList.remove('show');
+        
+        // Reset to IDLE when no hand detected
+        if (gestureState !== GestureState.IDLE) {
+          updateGestureState(GestureState.IDLE);
+        }
+        
+        // Reset states
+        handHistory = [];
+        lastFingerCount = 0;
+        handOrientation = 'unknown';
+        swipeState = {
+          history: [],
+          velocity: 0,
+          direction: null,
+          progress: 0,
+          startX: null,
+          startY: null,
+          startTime: null
+        };
+      }
+    }
+    
+    // Initialize MediaPipe
+    const hands = new Hands({ 
+      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` 
+    });
+    
+    hands.setOptions({ 
+      maxNumHands: 1, 
+      modelComplexity: 1, 
+      minDetectionConfidence: 0.7, 
+      minTrackingConfidence: 0.5 
+    });
+    
+    hands.onResults(updateCanvas);
+    
+    const video = document.getElementById('video');
+    const camera = new Camera(video, {
+      onFrame: async () => await hands.send({ image: video }),
+      width: 640,
+      height: 480
+    });
+    
+    // Start
+    updateDisplay();
+    camera.start();
+    
+    // Manual controls
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') slideImages('left');
+      if (e.key === 'ArrowRight') slideImages('right');
+      if (e.key === 'f') setFullscreen(!isFullscreen);
+    });
+    
+    // Click image to toggle fullscreen
+    document.querySelectorAll('.slide-image').forEach(img => {
+      img.addEventListener('click', () => setFullscreen(!isFullscreen));
+    });
+  </script>
+</body>
+</html>

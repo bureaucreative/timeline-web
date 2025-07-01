@@ -1,0 +1,191 @@
+# TWO-HANDED GESTURE SYSTEM WITH 3-ACTION BUFFER
+
+## Overview
+A sophisticated gesture recognition system designed for two-handed interaction where hands naturally rest on the sides of the screen. Uses a 3-action buffer mechanism to distinguish intentional gestures from return movements.
+
+## Important: Camera Mirroring and Hand Mapping
+Most webcams show a mirrored view (like looking in a mirror):
+- Your **RIGHT hand** appears on the **LEFT side** of the video feed
+- Your **LEFT hand** appears on the **RIGHT side** of the video feed
+
+However, the system maps hands to their logical zones:
+- **RIGHT hand** → controls **RIGHT zone** (75-100% of screen)
+- **LEFT hand** → controls **LEFT zone** (0-25% of screen)
+
+### Hand Identification
+- **BLUE visualization** = Left hand
+- **PINK visualization** = Right hand
+
+## Key Innovation: 3-Action Buffer
+Instead of time-based cooldowns or neutral zones, this system counts hand actions:
+1. After any gesture is detected, system enters "waiting mode"
+2. Counts the next 3 hand actions (movements, finger changes, appearance/disappearance)
+3. Only after 3 actions have been recorded does it re-enable gesture detection
+
+## Hand Zones
+The system uses logical mapping (right hand controls right zone):
+
+```
+Logical Control Mapping:
+┌─────────┐                      ┌─────────┐
+│         │                      │         │
+│  LEFT   │     Main Content     │  RIGHT  │
+│  ZONE   │                      │  ZONE   │
+│ (Blue)  │                      │ (Pink)  │
+└─────────┘                      └─────────┘
+   0-25%                            75-100%
+     ↑                                 ↑
+Left Hand                         Right Hand
+
+Camera View (What You See):
+Your right hand appears left     Your left hand appears right
+due to mirror effect             due to mirror effect
+```
+
+## Actions Tracked
+The system monitors 8 types of hand actions:
+1. **MOVE_LEFT** - Hand moves left (>2% screen width)
+2. **MOVE_RIGHT** - Hand moves right (>2% screen width)
+3. **MOVE_UP** - Hand moves up (>2% screen height)
+4. **MOVE_DOWN** - Hand moves down (>2% screen height)
+5. **HAND_OPEN** - Fingers extend (increase count)
+6. **HAND_CLOSE** - Fingers close (decrease count)
+7. **HAND_APPEAR** - Hand enters camera view
+8. **HAND_DISAPPEAR** - Hand leaves camera view
+
+## Gesture Types
+
+### Swipe Gesture
+- **Trigger**: Horizontal movement >15% of screen width
+- **Direction**: Left or right based on movement
+- **Action**: Navigate between images
+
+### Palm Gesture
+- **Trigger**: 5 fingers shown while in resting zone
+- **Action**: Toggle fullscreen mode
+- **Zone Required**: Hand must be in its designated side zone
+
+## Visual Feedback
+
+### Action Counter Display
+Shows progress through the 3-action buffer:
+```
+○○○ - No actions recorded
+●○○ - 1 action recorded
+●●○ - 2 actions recorded
+●●● - 3 actions recorded (ready for next gesture)
+```
+
+### Hand State Indicators
+- **Blue zones** on sides show hand resting areas
+- **Hand visualization** changes color based on state
+- **Debug panel** shows real-time hand tracking data
+
+## Why This Approach Works
+
+### Problem Solved
+When users swipe, their hand naturally returns to a resting position. Traditional systems might interpret this return movement as a new gesture.
+
+### Solution Benefits
+1. **Natural Movement**: Users can return hands to sides without triggering gestures
+2. **Predictable Behavior**: Always wait for exactly 3 actions
+3. **Visual Clarity**: Users see progress toward next gesture availability
+4. **No Time Pressure**: Unlike cooldowns, users control the pace
+
+## Configuration
+
+### Adjustable Parameters
+```javascript
+// Mirror mode (set based on your camera)
+MIRROR_MODE = true  // true for most webcams (selfie-style)
+
+// Hand zones (normalized 0-1)
+HAND_ZONES = {
+  LEFT: { xMin: 0.0, xMax: 0.25 },   // Left 25% of screen
+  RIGHT: { xMin: 0.75, xMax: 1.0 }   // Right 25% of screen
+}
+
+// Buffer settings
+gestureState = {
+  bufferSize: 3,  // Number of actions to wait
+}
+
+// Gesture thresholds
+swipeThreshold = 0.15  // 15% of screen width
+moveThreshold = 0.02   // 2% movement to count as action
+```
+
+## Usage Flow
+
+1. **Ready State**: Both hands can trigger gestures
+2. **Gesture Detected**: User swipes or shows palm
+3. **Buffer Active**: System shows ○○○ and starts counting
+4. **Actions Recorded**: Each hand movement/change fills a dot
+5. **Buffer Complete**: After ●●●, system returns to ready state
+
+## Implementation Details
+
+### State Management
+```javascript
+gestureState = {
+  isWaiting: false,      // In buffer period?
+  actionCounter: 0,      // Actions seen so far
+  actionBuffer: [],      // History of recent actions
+  activeHand: null       // Which hand triggered last gesture
+}
+```
+
+### Hand Tracking
+Each hand maintains:
+- Current and previous position
+- Visibility state
+- Finger count
+- Movement history (last 30 positions)
+- Palm gesture trigger state
+
+## Best Practices
+
+1. **Keep Hands Visible**: System tracks appearance/disappearance as actions
+2. **Natural Movements**: Don't try to keep perfectly still
+3. **Watch the Dots**: Visual feedback shows buffer progress
+4. **Use Both Hands**: Each hand can trigger gestures independently
+
+## Advantages Over Other Methods
+
+### vs. Time-based Cooldown
+- No waiting for arbitrary time periods
+- User controls progression through natural movements
+- More predictable and learnable
+
+### vs. Neutral Zone
+- No need to move hands to center of screen
+- Natural resting positions on sides
+- Better for two-handed interfaces
+
+### vs. Simple Threshold
+- Prevents return movement false positives
+- Allows for natural hand repositioning
+- Clear visual feedback of system state
+
+## Troubleshooting
+
+### Understanding the Setup
+- Camera shows a mirrored view (like a selfie)
+- Your right hand appears on the left side of the video
+- But it still controls the right zone (logical mapping)
+- This feels natural - like reaching to your right
+
+### Visual Hand Colors
+- **Blue** = Always your left hand
+- **Pink** = Always your right hand
+- Colors follow your actual hands, not their mirrored position
+
+## Files Created
+- `two-handed-buffer.html` - Complete implementation
+- `TWO_HANDED_BUFFER.txt` - This documentation
+
+## Browser Requirements
+- Modern browser with WebRTC support
+- Camera/webcam access
+- JavaScript enabled
+- MediaPipe Hands library (loaded from CDN)

@@ -1,0 +1,177 @@
+# DYNAMIC HAND ZONES SYSTEM
+
+## Overview
+A gesture recognition system where each hand has its own **dynamic zone** that follows the hand's position. Instead of fixed zones on the sides, each hand creates a 200x200 pixel square zone around itself that moves as the hand moves.
+
+## Comparison with Fixed Zones
+
+### Fixed Zones (two-handed-buffer.html)
+```
+[LEFT ZONE]              [RIGHT ZONE]
+┌─────────┐              ┌─────────┐
+│ Fixed   │              │ Fixed   │
+│ 0-25%   │   Content    │ 75-100% │
+│         │              │         │
+└─────────┘              └─────────┘
+```
+
+### Dynamic Zones (this system)
+```
+    ┌─────────┐
+    │ Follows │ ← Moves with left hand
+    │  Hand   │
+    └─────────┘
+                    ┌─────────┐
+                    │ Follows │ ← Moves with right hand
+                    │  Hand   │
+                    └─────────┘
+```
+
+## Key Innovation: Following Zones
+- Each hand generates its own zone that tracks with hand movement
+- Zones appear when hands are detected and disappear when hands leave
+- Gestures must start within the hand's own zone to be recognized
+- Prevents accidental gestures from random hand movements
+
+## How It Works
+
+### Dynamic Zone Behavior
+```
+┌─────────┐
+│  Zone   │ ← Follows left hand
+│ (Blue)  │   200x200px square
+└─────────┘
+
+          ┌─────────┐
+          │  Zone   │ ← Follows right hand
+          │ (Pink)  │   200x200px square
+          └─────────┘
+```
+
+### Zone Properties
+- **Size**: 200x200 pixels
+- **Position**: Centered on palm (smoothed for stability)
+- **Appearance**: Semi-transparent with glow effect
+- **Colors**: Blue for left hand, Pink for right hand
+
+## Gesture Detection
+
+### Swipe Gesture
+1. **Start**: Hand must be inside its own zone
+2. **Move**: Swipe left or right (>15% screen width)
+3. **Execute**: Navigate images
+4. **Important**: Swipes starting outside zone are ignored
+
+### Palm Gesture (Fullscreen)
+1. **Show**: 5 fingers while hand is in its zone
+2. **Execute**: Toggle fullscreen
+3. **Release**: Lower fingers to reset
+
+## 3-Action Buffer
+After any gesture:
+1. System enters waiting mode
+2. Shows progress dots: ○○○
+3. Counts next 3 hand actions
+4. Returns to ready state: ●●●
+
+## Visual Feedback
+
+### Zone Indicators
+- **Active Zone**: Glowing border when hand is inside
+- **Zone Label**: Shows which hand owns the zone
+- **Palm Glow**: Extra indicator when hand is in zone
+
+### Debug Panel
+Shows for each hand:
+- Visibility status
+- Position (% of screen)
+- Finger count
+- Zone active status
+
+## Configuration
+
+```javascript
+const MIRROR_MODE = true;    // Handle camera mirroring
+const ZONE_SIZE = 200;       // Zone size in pixels
+const ZONE_OFFSET = 100;     // Offset from palm center
+
+// Smoothing for zone movement
+const smoothing = 0.3;       // 0 = no smoothing, 1 = no movement
+```
+
+## Why This Approach?
+
+### Advantages
+1. **Natural Movement**: Zones follow your hands anywhere
+2. **Clear Boundaries**: Visual zones show active areas
+3. **Prevents False Positives**: Gestures must start in zone
+4. **Flexible Positioning**: Work from any comfortable position
+
+### Use Cases
+- **Presentations**: Move freely while controlling slides
+- **Accessibility**: Adjust hand position for comfort
+- **Standing/Sitting**: Zones adapt to your posture
+
+## Implementation Details
+
+### Zone Tracking
+```javascript
+// Each hand maintains:
+zoneCenter: { x: 0, y: 0 }      // Smoothed position
+gestureStartInZone: boolean      // Track gesture origin
+history: []                      // Position history
+```
+
+### Gesture Requirements
+- Swipes must start inside the hand's zone
+- If hand leaves zone mid-swipe, gesture continues
+- New swipes cannot start outside zones
+
+## Best Practices
+
+1. **Keep Hands Visible**: Zones appear only when hands are detected
+2. **Start in Zone**: Begin gestures with hand inside its zone
+3. **Natural Movement**: Zones follow smoothly, no need to chase them
+4. **Watch the Glow**: Visual feedback shows when you're in zone
+
+## Troubleshooting
+
+### Zone Not Following Properly
+- Check lighting conditions
+- Ensure full hand is visible
+- Move hand slowly for smooth tracking
+
+### Gestures Not Detected
+- Verify hand is inside zone (look for glow)
+- Start gesture from within zone
+- Check debug panel for zone active status
+
+### Zones Jumping Around
+- Improve lighting
+- Reduce background movement
+- Adjust smoothing parameter if needed
+
+## When to Use Each System
+
+### Use Fixed Zones When:
+- Working at a desk with hands in consistent positions
+- Want designated "home" areas for each hand
+- Prefer predictable zone locations
+- Multiple users need to know where zones are
+
+### Use Dynamic Zones When:
+- Moving around during presentations
+- Need flexibility in hand positioning
+- Accessibility requirements (adjust for comfort)
+- Want zones to adapt to your posture
+- Single user with varying positions
+
+## Files Created
+- `dynamic-hand-zones.html` - Complete implementation
+- `DYNAMIC_HAND_ZONES.txt` - This documentation
+
+## Browser Requirements
+- Modern browser with WebRTC support
+- Camera/webcam access
+- JavaScript enabled
+- MediaPipe Hands library (loaded from CDN)

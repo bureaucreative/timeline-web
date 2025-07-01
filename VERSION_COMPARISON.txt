@@ -1,0 +1,47 @@
+# GESTURE DETECTION COMPARISON
+
+## Original (gesture-zdepth.html)
+- **Palm Mode**: Score > 60 (40% of positions)
+- **Profile Mode**: Score < 40 (40% of positions)
+- **Transition**: Score 40-60 (20% of positions)
+- **Result**: Equal priority for fullscreen and swipe
+
+## Enhanced (side-swipe-enhanced.html)
+- Same thresholds as original
+- Better swipe detection algorithm
+- Visual trails and progress bars
+- Velocity-based triggering
+
+## Swipe Priority (swipe-priority.html) ⭐ RECOMMENDED
+- **Palm Mode**: Score > 85 (Only ~15% of positions)
+- **Profile Mode**: Score < 70 (70% of positions)
+- **Transition-Swipe**: Score 70-85 (15% - swipes work here too!)
+- **Result**: Swipe works in 85% of hand positions
+
+## Which to Use?
+
+### For General Use: `swipe-priority.html`
+✅ Most natural interaction
+✅ Swipe navigation is primary
+✅ Fullscreen only when intended
+✅ Clear feedback
+
+### For Testing: `zdepth-test.html`
+✅ See all metrics
+✅ Understand scoring
+✅ Debug hand positions
+
+### For Demos: `swipe-animation-enhanced.html`
+✅ Beautiful sliding animations
+✅ Professional appearance
+✅ Good gesture detection
+
+## Quick Stats
+
+| Version | Swipe Works | Fullscreen Easy | Best For |
+|---------|------------|-----------------|----------|
+| Original | 40% angles | Yes (too easy) | Testing |
+| Enhanced | 40% angles | Yes | Visuals |
+| Priority | 85% angles | No (deliberate) | Daily Use |
+
+The swipe-priority version makes the system much more practical!
