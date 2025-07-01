@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timeline Web - Gesture Control Demos</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 40px;
+      background: #000;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      color: #4a9eff;
+      margin-bottom: 10px;
+    }
+    
+    .subtitle {
+      color: #999;
+      margin-bottom: 40px;
+    }
+    
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 40px;
+    }
+    
+    .demo-card {
+      background: rgba(20, 20, 20, 0.9);
+      border: 2px solid rgba(74, 158, 255, 0.3);
+      border-radius: 15px;
+      padding: 20px;
+      transition: all 0.3s ease;
+    }
+    
+    .demo-card:hover {
+      border-color: rgba(74, 158, 255, 0.8);
+      transform: translateY(-5px);
+    }
+    
+    .demo-card h3 {
+      color: #4a9eff;
+      margin-top: 0;
+    }
+    
+    .demo-card p {
+      color: #ccc;
+      font-size: 14px;
+      margin: 10px 0;
+    }
+    
+    .demo-link {
+      display: inline-block;
+      background: #4a9eff;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 25px;
+      text-decoration: none;
+      margin-top: 10px;
+      transition: all 0.3s ease;
+    }
+    
+    .demo-link:hover {
+      background: #3a8eef;
+      transform: scale(1.05);
+    }
+    
+    .featured {
+      border-color: rgba(68, 255, 68, 0.5);
+    }
+    
+    .featured h3 {
+      color: #44ff44;
+    }
+    
+    .warning {
+      background: rgba(255, 165, 0, 0.1);
+      border: 1px solid rgba(255, 165, 0, 0.3);
+      padding: 15px;
+      border-radius: 10px;
+      margin: 30px 0;
+    }
+    
+    .test-section {
+      margin-top: 60px;
+      padding-top: 40px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Timeline Web - Gesture Control Demos</h1>
+    <p class="subtitle">Advanced hand gesture control for web applications</p>
+    
+    <div class="warning">
+      ⚠️ <strong>Note:</strong> These demos require camera access. Please allow camera permissions when prompted.
+    </div>
+    
+    <h2>🌟 Main Demos</h2>
+    <div class="demo-grid">
+      <div class="demo-card featured">
+        <h3>🏠 Return to Home (Recommended)</h3>
+        <p>Natural gesture flow with home position, swipe navigation, and palm zoom</p>
+        <p><strong>Features:</strong> Swipe + Return + Palm Zoom</p>
+        <a href="return-to-home.html" class="demo-link">Try Demo →</a>
+      </div>
+      
+      <div class="demo-card">
+        <h3>🎯 Dynamic Zones</h3>
+        <p>Gesture zones that follow your hands anywhere on screen</p>
+        <p><strong>Features:</strong> Mobile zones + Flexible positioning</p>
+        <a href="dynamic-hand-zones.html" class="demo-link">Try Demo →</a>
+      </div>
+      
+      <div class="demo-card">
+        <h3>🤲 Two-Handed Buffer</h3>
+        <p>Precise control with 3-action buffer between gestures</p>
+        <p><strong>Features:</strong> Side zones + Action counting</p>
+        <a href="two-handed-buffer.html" class="demo-link">Try Demo →</a>
+      </div>
+      
+      <div class="demo-card">
+        <h3>🔄 State Machine</h3>
+        <p>Technical approach with central neutral zone</p>
+        <p><strong>Features:</strong> 4 states + Visual feedback</p>
+        <a href="gesture-state-machine.html" class="demo-link">Try Demo →</a>
+      </div>
+    </div>
+    
+    <div class="test-section">
+      <h2>🧪 Test Tools</h2>
+      <div class="demo-grid">
+        <div class="demo-card">
+          <h3>📊 Compare All Methods</h3>
+          <p>Visual comparison of all gesture control methods</p>
+          <a href="comparison.html" class="demo-link">View Comparison →</a>
+        </div>
+        
+        <div class="demo-card">
+          <h3>🖐️ Palm Detection Test</h3>
+          <p>Test palm and fist detection accuracy</p>
+          <a href="palm-detection-test.html" class="demo-link">Test Palm →</a>
+        </div>
+        
+        <div class="demo-card">
+          <h3>🪞 Mirror Test</h3>
+          <p>Verify hands appear on correct sides</p>
+          <a href="mirror-test.html" class="demo-link">Test Mirror →</a>
+        </div>
+        
+        <div class="demo-card">
+          <h3>🎯 Detection Zones</h3>
+          <p>Visualize home detection areas</p>
+          <a href="home-detection-test.html" class="demo-link">View Zones →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
